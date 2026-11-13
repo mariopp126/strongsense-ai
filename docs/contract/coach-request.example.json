@@ -1,0 +1,213 @@
+{
+  "contractVersion": 1,
+  "locale": "en",
+  "context": {
+    "date": "2026-11-14",
+    "blockWeek": 2,
+    "unit": "kg",
+    "programDay": {
+      "id": "day-2",
+      "title": "Bench & Upper Body",
+      "exercises": [
+        {
+          "id": "ex-bench",
+          "name": "Bench Press",
+          "role": "main",
+          "setTargets": [
+            { "reps": 5, "repsMax": null, "loadKg": 75.0, "rpeCap": null },
+            { "reps": 5, "repsMax": null, "loadKg": 75.0, "rpeCap": null },
+            { "reps": 5, "repsMax": null, "loadKg": 75.0, "rpeCap": null },
+            { "reps": 5, "repsMax": null, "loadKg": 75.0, "rpeCap": null }
+          ]
+        },
+        {
+          "id": "ex-spoto",
+          "name": "Spoto Press",
+          "role": "variation",
+          "setTargets": [
+            { "reps": 4, "repsMax": null, "loadKg": 65.0, "rpeCap": null },
+            { "reps": 4, "repsMax": null, "loadKg": 65.0, "rpeCap": null },
+            { "reps": 4, "repsMax": null, "loadKg": 65.0, "rpeCap": null }
+          ]
+        },
+        {
+          "id": "ex-cs-row",
+          "name": "Chest-Supported Rows",
+          "role": "accessory",
+          "setTargets": [
+            { "reps": 10, "repsMax": 12, "loadKg": null, "rpeCap": null },
+            { "reps": 10, "repsMax": 12, "loadKg": null, "rpeCap": null },
+            { "reps": 10, "repsMax": 12, "loadKg": null, "rpeCap": null }
+          ]
+        },
+        {
+          "id": "ex-lat-pulldown",
+          "name": "Lat Pulldowns",
+          "role": "accessory",
+          "setTargets": [
+            { "reps": 10, "repsMax": 12, "loadKg": null, "rpeCap": null },
+            { "reps": 10, "repsMax": 12, "loadKg": null, "rpeCap": null },
+            { "reps": 10, "repsMax": 12, "loadKg": null, "rpeCap": null }
+          ]
+        },
+        {
+          "id": "ex-triceps-pushdown",
+          "name": "Triceps Rope Pushdowns",
+          "role": "accessory",
+          "setTargets": [
+            { "reps": 12, "repsMax": 15, "loadKg": null, "rpeCap": null },
+            { "reps": 12, "repsMax": 15, "loadKg": null, "rpeCap": null },
+            { "reps": 12, "repsMax": 15, "loadKg": null, "rpeCap": null }
+          ]
+        },
+        {
+          "id": "ex-db-curl",
+          "name": "Dumbbell Bicep Curls",
+          "role": "accessory",
+          "setTargets": [
+            { "reps": 12, "repsMax": 15, "loadKg": null, "rpeCap": null },
+            { "reps": 12, "repsMax": 15, "loadKg": null, "rpeCap": null },
+            { "reps": 12, "repsMax": 15, "loadKg": null, "rpeCap": null }
+          ]
+        }
+      ]
+    },
+    "checkIn": {
+      "sleepQuality": 4,
+      "sleepHours": 7.5,
+      "energy": 3,
+      "motivation": 4,
+      "soreness": 2,
+      "stress": 2,
+      "painAreas": [],
+      "painSeverity": 0,
+      "timeAvailableMin": 60
+    },
+    "readiness": {
+      "score": 72,
+      "band": "amber",
+      "components": {
+        "sleep": 75,
+        "energy": 50,
+        "stress": 75,
+        "soreness": 75,
+        "motivation": 75
+      }
+    },
+    "lastSession": {
+      "date": "2026-11-09",
+      "classification": "easy",
+      "perLift": [
+        {
+          "exerciseId": "ex-bench",
+          "topSetKg": 75.0,
+          "topSetReps": 5,
+          "topSetRpe": 7.0,
+          "e1rmKg": 87.5,
+          "missedSets": 0
+        },
+        {
+          "exerciseId": "ex-spoto",
+          "topSetKg": 65.0,
+          "topSetReps": 4,
+          "topSetRpe": 7.0,
+          "e1rmKg": 73.67,
+          "missedSets": 0
+        }
+      ]
+    },
+    "recentSessions": [
+      {
+        "date": "2026-11-09",
+        "dayId": "day-2",
+        "classification": "easy",
+        "avgRpe": 7.1,
+        "volumeKg": 4220.0,
+        "missedSets": 0
+      },
+      {
+        "date": "2026-11-07",
+        "dayId": "day-1",
+        "classification": "normal",
+        "avgRpe": 8.0,
+        "volumeKg": 5400.0,
+        "missedSets": 0
+      },
+      {
+        "date": "2026-11-05",
+        "dayId": "day-3",
+        "classification": "hard",
+        "avgRpe": 9.0,
+        "volumeKg": 4900.0,
+        "missedSets": 1
+      }
+    ],
+    "personalRecords": [
+      { "exerciseId": "ex-bench", "e1rmKg": 93.75, "date": "2026-10-01" },
+      { "exerciseId": "ex-squat", "e1rmKg": 112.5, "date": "2026-10-03" },
+      { "exerciseId": "ex-deadlift", "e1rmKg": 121.67, "date": "2026-10-05" }
+    ],
+    "settings": {
+      "unit": "kg",
+      "increments": {
+        "benchKg": 2.5,
+        "squatKg": 5.0,
+        "deadliftKg": 5.0,
+        "accessoryKg": 2.5
+      }
+    },
+    "constraints": {
+      "maxLoadDeltaPct": 5.0,
+      "minLoadDeltaPct": -10.0,
+      "maxSetsDelta": 2,
+      "rpeCapMax": 9.0,
+      "maxTips": 12
+    }
+  },
+  "baselinePlan": {
+    "source": "rules",
+    "summary": "Readiness is moderate. Hold the bench volume at RPE 8.5 and add one set only while bar speed stays crisp.",
+    "readinessExplanation": "Sleep and motivation are good, but energy is average and you are carrying some soreness. Amber readiness means maintain rather than push intensity.",
+    "rpeCap": 8.5,
+    "deload": false,
+    "adjustments": [
+      {
+        "exerciseId": "ex-bench",
+        "exercise": "Bench Press",
+        "loadDeltaPct": 1.0,
+        "setsDelta": 1,
+        "repsHint": "5 reps @ RPE 8.5",
+        "reason": "Amber readiness with an easy previous session: small load bump and one extra working set.",
+        "substituteWith": null
+      },
+      {
+        "exerciseId": "ex-spoto",
+        "exercise": "Spoto Press",
+        "loadDeltaPct": 1.0,
+        "setsDelta": 0,
+        "repsHint": "4 reps @ RPE 8",
+        "reason": "Same load trend as the competition lift, no extra volume.",
+        "substituteWith": null
+      }
+    ],
+    "tips": [
+      {
+        "title": "Bank quality reps",
+        "body": "At amber readiness, stop each bench set with one clean rep in reserve instead of grinding. The extra set is only valuable if bar speed stays consistent.",
+        "category": "programming"
+      },
+      {
+        "title": "Warm up the pressing chain",
+        "body": "Spend five minutes on band pull-aparts, scap push-ups and light dumbbell external rotations before your first bench set. It is the cheapest insurance for a shoulder that feels average.",
+        "category": "technique"
+      },
+      {
+        "title": "Do not chase a weight PR today",
+        "body": "With average energy and mild soreness, technique work beats a deep grind. Save the heavy attempt for a green readiness day.",
+        "category": "recovery"
+      }
+    ],
+    "flags": ["Readiness is moderate: keep RPE at or below 8.5."],
+    "disclaimer": "StrongSense AI provides general training guidance, not medical advice. Stop and seek professional care if you feel sharp pain, numbness or a joint gives way."
+  }
+}

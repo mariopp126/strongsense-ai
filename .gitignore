@@ -1,0 +1,90 @@
+# ---------------------------------------------------------------------------
+# StrongSense AI
+# ---------------------------------------------------------------------------
+
+# Secrets & local environment
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.jks
+secrets/
+
+# Dart / Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+*.iml
+.idea/
+.metadata
+**/generated_plugin_registrant.dart
+**/generated_plugins.cmake
+**/generated_plugins.h
+**/generated_plugin.swift
+**/GeneratedPluginRegistrant.*
+apps/strongsense/.dart_tool/
+apps/strongsense/build/
+
+# Android
+apps/strongsense/android/.gradle/
+apps/strongsense/android/local.properties
+apps/strongsense/android/key.properties
+apps/strongsense/android/app/*.jks
+apps/strongsense/android/app/*.keystore
+*.apk
+*.aab
+
+# iOS / macOS
+apps/strongsense/ios/Pods/
+apps/strongsense/ios/.symlinks/
+apps/strongsense/ios/Flutter/ephemeral/
+apps/strongsense/ios/Flutter/Generated.xcconfig
+apps/strongsense/ios/Flutter/flutter_export_environment.sh
+
+# Web build output
+apps/strongsense/web/flutter_service_worker.js
+apps/strongsense/web/.dart_tool/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+dist/
+site-packages/
+
+# Node (docs tooling only)
+node_modules/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+
+# Logs & temp
+*.log
+tmp/
+
+# Kotlin/Gradle local state
+**/.kotlin/
+

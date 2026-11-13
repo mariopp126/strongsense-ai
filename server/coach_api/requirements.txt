@@ -1,0 +1,8 @@
+# StrongSense Coach API - pinned runtime dependencies.
+# Installed in CI/Docker with: pip install -r requirements.txt
+# Versions verified locally on Python 3.12.3 (Windows) and kept current for CI (Linux).
+fastapi==0.162.7
+uvicorn[standard]==0.54.0
+httpx==0.28.1
+pydantic==2.14.3
+pydantic-settings==2.16.3

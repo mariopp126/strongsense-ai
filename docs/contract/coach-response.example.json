@@ -1,0 +1,71 @@
+{
+  "contractVersion": 1,
+  "source": "llm",
+  "plan": {
+    "source": "llm",
+    "summary": "Amber day: keep the bench at 76 kg for crisp fives, add one set only if the first three move fast, and use Spoto press to reinforce your groove rather than to grind.",
+    "readinessExplanation": "Your sleep and motivation are solid, but energy is average and you reported mild soreness. That combination is a maintain-and-execute day, not a day to test a new max. Keep two reps in reserve on the first bench set and let bar speed decide the last one.",
+    "rpeCap": 8.5,
+    "deload": false,
+    "adjustments": [
+      {
+        "exerciseId": "ex-bench",
+        "exercise": "Bench Press",
+        "loadDeltaPct": 1.0,
+        "setsDelta": 1,
+        "repsHint": "5 reps @ RPE 8.5",
+        "reason": "Easy bench session last time and amber readiness: a 1% bump plus one working set is the smallest useful progression.",
+        "substituteWith": null
+      },
+      {
+        "exerciseId": "ex-spoto",
+        "exercise": "Spoto Press",
+        "loadDeltaPct": 0.0,
+        "setsDelta": 0,
+        "repsHint": "4 reps @ RPE 8",
+        "reason": "Keep Spoto press as technique volume; increasing it today would add fatigue without adding a training stimulus.",
+        "substituteWith": null
+      },
+      {
+        "exerciseId": "ex-triceps-pushdown",
+        "exercise": "Triceps Rope Pushdowns",
+        "loadDeltaPct": 0.0,
+        "setsDelta": -1,
+        "repsHint": "12-15 reps, stop 1-2 short of failure",
+        "reason": "Trim one accessory set to keep total session fatigue in line with an amber day.",
+        "substituteWith": null
+      }
+    ],
+    "tips": [
+      {
+        "title": "Pause, then press",
+        "body": "Own a one-second pause on the first rep of every bench set. It exposes the position where you lose tension and makes the following reps more consistent.",
+        "category": "technique"
+      },
+      {
+        "title": "Bench setup in three steps",
+        "body": "Set your feet, pull your shoulder blades down and back, then unrack without losing upper-back tension. A tighter setup is worth more than an extra 2.5 kg today.",
+        "category": "technique"
+      },
+      {
+        "title": "Fuel the session",
+        "body": "A modest carbohydrate serving 60-90 minutes before training keeps the last set as sharp as the first. You do not need a special supplement for this.",
+        "category": "nutrition"
+      },
+      {
+        "title": "Protect the next squat day",
+        "body": "Stop the accessory work when the reps slow down noticeably. The goal today is to leave the gym able to repeat this quality on your next lower-body session.",
+        "category": "recovery"
+      }
+    ],
+    "flags": ["Amber readiness: cap the session at RPE 8.5.", "One accessory set removed to control fatigue."],
+    "disclaimer": "StrongSense AI provides general training guidance, not medical advice. Stop and seek professional care if you feel sharp pain, numbness or a joint gives way."
+  },
+  "meta": {
+    "provider": "openai_compatible",
+    "model": "gpt-4.1-mini",
+    "latencyMs": 1450,
+    "clamped": false,
+    "droppedAdjustments": 0
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "summary": "This is an intentionally unsafe and oversized model response used to prove that the safety clamp runs on the server and on the client. It repeats itself to exceed the length limits and to make the test deterministic without depending on any external service. This is an intentionally unsafe and oversized model response used to prove that the safety clamp runs on the server and on the client. It repeats itself to exceed the length limits and to make the test deterministic without depending on any external service. This is an intentionally unsafe and oversized model response used to prove that the safety clamp runs on the server and on the client. It repeats itself to exceed the length limits and to make the test deterministic without depending on any external service. This is an intentionally unsafe and oversized model response used to prove that the safety clamp runs on the server and on the client. It repeats itself to exceed the length limits and to make the test deterministic without depending on any external service. This is an intentionally unsafe and oversized model response used to prove that the safety clamp runs on the server and on the client. It repeats itself to exceed the length limits and to make the test deterministic without depending on any external service. This is an intentionally unsafe and oversized model response used to prove that the safety clamp runs on the server and on the client. It repeats itself to exceed the length limits and to make the test deterministic without depending on any external service. This is an intentionally unsafe and oversized model response used to prove that the safety clamp runs on the server and on the client. It repeats itself to exceed the length limits and to make the test deterministic without depending on any external service.",
+  "readinessExplanation": "Unsafe fixture: the model invents a new exercise, pushes the load by 25 percent, adds six sets, raises the RPE cap to eleven and returns far more tips than the contract allows. Every one of these values must be clamped or dropped before the plan reaches the user.",
+  "rpeCap": 11.0,
+  "deload": false,
+  "adjustments": [
+    {
+      "exerciseId": "ex-bench",
+      "exercise": "Bench Press",
+      "loadDeltaPct": 25.0,
+      "setsDelta": 6,
+      "repsHint": "5 reps @ RPE 11",
+      "reason": "Unsafe: load delta and set delta are far outside the allowed range.",
+      "substituteWith": null
+    },
+    {
+      "exerciseId": "ex-cable-fly",
+      "exercise": "Cable Flyes",
+      "loadDeltaPct": 10.0,
+      "setsDelta": 1,
+      "repsHint": "12 reps to failure",
+      "reason": "Unsafe: this exercise does not exist in the session.",
+      "substituteWith": null
+    },
+    {
+      "exerciseId": "ex-spoto",
+      "exercise": "Spoto Press",
+      "loadDeltaPct": -50.0,
+      "setsDelta": -9,
+      "repsHint": null,
+      "reason": "Unsafe: negative deltas far outside the allowed range.",
+      "substituteWith": "Deficit Handstand Push-Up"
+    }
+  ],
+  "tips": [
+    { "title": "Tip 1", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "technique" },
+    { "title": "Tip 2", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "technique" },
+    { "title": "Tip 3", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "recovery" },
+    { "title": "Tip 4", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "recovery" },
+    { "title": "Tip 5", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "nutrition" },
+    { "title": "Tip 6", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "nutrition" },
+    { "title": "Tip 7", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "programming" },
+    { "title": "Tip 8", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "programming" },
+    { "title": "Tip 9", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "technique" },
+    { "title": "Tip 10", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "technique" },
+    { "title": "Tip 11", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "recovery" },
+    { "title": "Tip 12", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "recovery" },
+    { "title": "Tip 13", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "nutrition" },
+    { "title": "Tip 14", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "nutrition" },
+    { "title": "Tip 15", "body": "Unsafe fixture tip body used to verify the tip count clamp. This text is repeated so that the array is longer than the contract maximum.", "category": "programming" }
+  ],
+  "flags": ["Unsafe flag 1", "Unsafe flag 2", "Unsafe flag 3", "Unsafe flag 4", "Unsafe flag 5", "Unsafe flag 6", "Unsafe flag 7", "Unsafe flag 8", "Unsafe flag 9"],
+  "disclaimer": "I am not a doctor and this is definitely medical advice."
+}
