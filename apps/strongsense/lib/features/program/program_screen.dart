@@ -64,8 +64,11 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
                         child: _editing
                             ? TextFormField(
                                 initialValue: day.title,
-                                decoration: const InputDecoration(labelText: 'Day title'),
-                                onFieldSubmitted: (value) => _renameDay(day, value),
+                                decoration: const InputDecoration(
+                                  labelText: 'Day title',
+                                ),
+                                onFieldSubmitted: (value) =>
+                                    _renameDay(day, value),
                               )
                             : Text(
                                 l10n.dayTitle(day.id, day.title),
@@ -106,8 +109,11 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
                             child: _editing
                                 ? TextFormField(
                                     initialValue: exercise.name,
-                                    decoration: const InputDecoration(labelText: 'Exercise'),
-                                    onFieldSubmitted: (value) => _renameExercise(day, exercise, value),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Exercise',
+                                    ),
+                                    onFieldSubmitted: (value) =>
+                                        _renameExercise(day, exercise, value),
                                   )
                                 : Text(
                                     exercise.name,
@@ -130,7 +136,10 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
                               onPressed: () => _editSets(day, exercise),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                              icon: const Icon(
+                                Icons.delete_outline_rounded,
+                                size: 18,
+                              ),
                               onPressed: () => _removeExercise(day, exercise),
                             ),
                           ],
@@ -166,43 +175,57 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     final trimmed = value.trim();
     if (trimmed.isEmpty || trimmed == day.title) return;
     final program = ref.read(programControllerProvider);
-    final newDays = program.days.map((d) {
-      if (d.id != day.id) return d;
-      return d.copyWith(title: trimmed);
-    }).toList(growable: false);
-    await ref.read(programControllerProvider.notifier).save(
-          program.copyWith(days: newDays),
-        );
+    final newDays = program.days
+        .map((d) {
+          if (d.id != day.id) return d;
+          return d.copyWith(title: trimmed);
+        })
+        .toList(growable: false);
+    await ref
+        .read(programControllerProvider.notifier)
+        .save(program.copyWith(days: newDays));
   }
 
-  Future<void> _renameExercise(ProgramDay day, ProgramExercise exercise, String value) async {
+  Future<void> _renameExercise(
+    ProgramDay day,
+    ProgramExercise exercise,
+    String value,
+  ) async {
     final trimmed = value.trim();
     if (trimmed.isEmpty || trimmed == exercise.name) return;
     final program = ref.read(programControllerProvider);
-    final newDays = program.days.map((d) {
-      if (d.id != day.id) return d;
-      final newExercises = d.exercises.map((e) {
-        if (e.id != exercise.id) return e;
-        return e.copyWith(name: trimmed);
-      }).toList(growable: false);
-      return d.copyWith(exercises: newExercises);
-    }).toList(growable: false);
-    await ref.read(programControllerProvider.notifier).save(
-          program.copyWith(days: newDays),
-        );
+    final newDays = program.days
+        .map((d) {
+          if (d.id != day.id) return d;
+          final newExercises = d.exercises
+              .map((e) {
+                if (e.id != exercise.id) return e;
+                return e.copyWith(name: trimmed);
+              })
+              .toList(growable: false);
+          return d.copyWith(exercises: newExercises);
+        })
+        .toList(growable: false);
+    await ref
+        .read(programControllerProvider.notifier)
+        .save(program.copyWith(days: newDays));
   }
 
   Future<void> _removeExercise(ProgramDay day, ProgramExercise exercise) async {
     final program = ref.read(programControllerProvider);
-    final newDays = program.days.map((d) {
-      if (d.id != day.id) return d;
-      return d.copyWith(
-        exercises: d.exercises.where((e) => e.id != exercise.id).toList(growable: false),
-      );
-    }).toList(growable: false);
-    await ref.read(programControllerProvider.notifier).save(
-          program.copyWith(days: newDays),
-        );
+    final newDays = program.days
+        .map((d) {
+          if (d.id != day.id) return d;
+          return d.copyWith(
+            exercises: d.exercises
+                .where((e) => e.id != exercise.id)
+                .toList(growable: false),
+          );
+        })
+        .toList(growable: false);
+    await ref
+        .read(programControllerProvider.notifier)
+        .save(program.copyWith(days: newDays));
   }
 
   Future<void> _addExercise(ProgramDay day) async {
@@ -214,13 +237,17 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
       role: ExerciseRole.accessory,
       setTargets: const <SetTarget>[SetTarget(reps: 10, loadKg: null)],
     );
-    final newDays = program.days.map((d) {
-      if (d.id != day.id) return d;
-      return d.copyWith(exercises: <ProgramExercise>[...d.exercises, newExercise]);
-    }).toList(growable: false);
-    await ref.read(programControllerProvider.notifier).save(
-          program.copyWith(days: newDays),
-        );
+    final newDays = program.days
+        .map((d) {
+          if (d.id != day.id) return d;
+          return d.copyWith(
+            exercises: <ProgramExercise>[...d.exercises, newExercise],
+          );
+        })
+        .toList(growable: false);
+    await ref
+        .read(programControllerProvider.notifier)
+        .save(program.copyWith(days: newDays));
   }
 
   Future<void> _editSets(ProgramDay day, ProgramExercise exercise) async {
@@ -228,10 +255,14 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
       text: exercise.setTargets.length.toString(),
     );
     final repsController = TextEditingController(
-      text: exercise.setTargets.isEmpty ? '10' : exercise.setTargets.first.reps.toString(),
+      text: exercise.setTargets.isEmpty
+          ? '10'
+          : exercise.setTargets.first.reps.toString(),
     );
     final loadController = TextEditingController(
-      text: exercise.setTargets.isEmpty || exercise.setTargets.first.loadKg == null
+      text:
+          exercise.setTargets.isEmpty ||
+              exercise.setTargets.first.loadKg == null
           ? ''
           : exercise.setTargets.first.loadKg.toString(),
     );
@@ -242,20 +273,43 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            TextField(controller: controller, decoration: const InputDecoration(labelText: 'Sets'), keyboardType: TextInputType.number),
-            TextField(controller: repsController, decoration: const InputDecoration(labelText: 'Reps'), keyboardType: TextInputType.number),
-            TextField(controller: loadController, decoration: const InputDecoration(labelText: 'Load kg (blank = bodyweight/machine)'), keyboardType: TextInputType.number),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(labelText: 'Sets'),
+              keyboardType: TextInputType.number,
+            ),
+            TextField(
+              controller: repsController,
+              decoration: const InputDecoration(labelText: 'Reps'),
+              keyboardType: TextInputType.number,
+            ),
+            TextField(
+              controller: loadController,
+              decoration: const InputDecoration(
+                labelText: 'Load kg (blank = bodyweight/machine)',
+              ),
+              keyboardType: TextInputType.number,
+            ),
           ],
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Apply')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Apply'),
+          ),
         ],
       ),
     );
     if (result != true) return;
-    final sets = int.tryParse(controller.text.trim()) ?? exercise.setTargets.length;
-    final reps = int.tryParse(repsController.text.trim()) ?? (exercise.setTargets.isEmpty ? 10 : exercise.setTargets.first.reps);
+    final sets =
+        int.tryParse(controller.text.trim()) ?? exercise.setTargets.length;
+    final reps =
+        int.tryParse(repsController.text.trim()) ??
+        (exercise.setTargets.isEmpty ? 10 : exercise.setTargets.first.reps);
     final loadText = loadController.text.trim();
     final load = loadText.isEmpty ? null : double.tryParse(loadText);
     final newTargets = List<SetTarget>.generate(
@@ -263,17 +317,21 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
       (_) => SetTarget(reps: reps.clamp(1, 100), loadKg: load),
     );
     final program = ref.read(programControllerProvider);
-    final newDays = program.days.map((d) {
-      if (d.id != day.id) return d;
-      final newExercises = d.exercises.map((e) {
-        if (e.id != exercise.id) return e;
-        return e.copyWith(setTargets: newTargets);
-      }).toList(growable: false);
-      return d.copyWith(exercises: newExercises);
-    }).toList(growable: false);
-    await ref.read(programControllerProvider.notifier).save(
-          program.copyWith(days: newDays),
-        );
+    final newDays = program.days
+        .map((d) {
+          if (d.id != day.id) return d;
+          final newExercises = d.exercises
+              .map((e) {
+                if (e.id != exercise.id) return e;
+                return e.copyWith(setTargets: newTargets);
+              })
+              .toList(growable: false);
+          return d.copyWith(exercises: newExercises);
+        })
+        .toList(growable: false);
+    await ref
+        .read(programControllerProvider.notifier)
+        .save(program.copyWith(days: newDays));
   }
 
   Future<void> _save() async {
