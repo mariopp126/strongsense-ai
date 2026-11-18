@@ -16,6 +16,7 @@ import hashlib
 import json
 import math
 import time
+from contextlib import suppress
 from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
@@ -340,10 +341,8 @@ async def coach_plan(payload: CoachRequest, request: Request) -> CoachResponse:
             detail={"code": exc.code, "message": exc.message},
         ) from exc
     if cache is not None:
-        try:
+        with suppress(Exception):
             await cache.set(cache_key, response.model_dump(mode="json"))
-        except Exception:
-            pass
     return response
 
 

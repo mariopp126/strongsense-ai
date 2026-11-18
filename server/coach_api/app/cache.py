@@ -11,12 +11,13 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from contextlib import suppress
 from typing import Any, Protocol
 
 try:  # optional dependency
-    import asyncpg  # type: ignore[import-not-found]
+    import asyncpg
 except Exception:  # pragma: no cover - exercised only when asyncpg missing
-    asyncpg = None  # type: ignore[assignment]
+    asyncpg = None
 
 
 class PlanCache(Protocol):
@@ -147,10 +148,8 @@ class PostgresPlanCache:
 
     async def close(self) -> None:
         if self._pool is not None:
-            try:
+            with suppress(Exception):
                 await self._pool.close()
-            except Exception:
-                pass
             self._pool = None
 
 

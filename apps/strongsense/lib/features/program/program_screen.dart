@@ -291,7 +291,3 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     return '${exercise.setTargets.length} × ${first.repsLabel}$load';
   }
 }
-```
-
-Now run flutter analyze on app to catch errors.<|end|><|start|> assistant to=shell<|channel|>analysis <|constrain|>xml<|message|><rfl:parameter name="command">
-cd "C:\Users\sae6\.local\share\opencode\worktree\119e79\nimble-wolf\apps\strongsense"; flutter analyze --no-fatal-infos 2>&1 | Select-Object -Last 30
