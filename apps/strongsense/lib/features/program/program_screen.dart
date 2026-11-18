@@ -8,6 +8,7 @@ import '../../core/widgets/ss_card.dart';
 import '../../core/widgets/ss_progress.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/providers.dart';
+import 'set_targets_dialog.dart';
 
 class ProgramScreen extends ConsumerStatefulWidget {
   const ProgramScreen({super.key});
@@ -251,71 +252,14 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
   }
 
   Future<void> _editSets(ProgramDay day, ProgramExercise exercise) async {
-    final controller = TextEditingController(
-      text: exercise.setTargets.length.toString(),
-    );
-    final repsController = TextEditingController(
-      text: exercise.setTargets.isEmpty
-          ? '10'
-          : exercise.setTargets.first.reps.toString(),
-    );
-    final loadController = TextEditingController(
-      text:
-          exercise.setTargets.isEmpty ||
-              exercise.setTargets.first.loadKg == null
-          ? ''
-          : exercise.setTargets.first.loadKg.toString(),
-    );
-    final result = await showDialog<bool>(
+    final settings = ref.read(settingsControllerProvider);
+    final newTargets = await showSetTargetsDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Edit sets: ${exercise.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(labelText: 'Sets'),
-              keyboardType: TextInputType.number,
-            ),
-            TextField(
-              controller: repsController,
-              decoration: const InputDecoration(labelText: 'Reps'),
-              keyboardType: TextInputType.number,
-            ),
-            TextField(
-              controller: loadController,
-              decoration: const InputDecoration(
-                labelText: 'Load kg (blank = bodyweight/machine)',
-              ),
-              keyboardType: TextInputType.number,
-            ),
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Apply'),
-          ),
-        ],
-      ),
+      exerciseName: exercise.name,
+      targets: exercise.setTargets,
+      unit: settings.unit,
     );
-    if (result != true) return;
-    final sets =
-        int.tryParse(controller.text.trim()) ?? exercise.setTargets.length;
-    final reps =
-        int.tryParse(repsController.text.trim()) ??
-        (exercise.setTargets.isEmpty ? 10 : exercise.setTargets.first.reps);
-    final loadText = loadController.text.trim();
-    final load = loadText.isEmpty ? null : double.tryParse(loadText);
-    final newTargets = List<SetTarget>.generate(
-      sets.clamp(1, 20),
-      (_) => SetTarget(reps: reps.clamp(1, 100), loadKg: load),
-    );
+    if (newTargets == null) return;
     final program = ref.read(programControllerProvider);
     final newDays = program.days
         .map((d) {
@@ -343,9 +287,18 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
       return '—';
     }
     final first = exercise.setTargets.first;
+    final uniform = exercise.setTargets.every(
+      (target) =>
+          target.reps == first.reps &&
+          target.repsMax == first.repsMax &&
+          target.loadKg == first.loadKg,
+    );
     final load = first.loadKg == null
         ? ''
         : ' · ${formatWeight(first.loadKg, unit)}';
+    if (!uniform) {
+      return '${exercise.setTargets.length} × …';
+    }
     return '${exercise.setTargets.length} × ${first.repsLabel}$load';
   }
 }

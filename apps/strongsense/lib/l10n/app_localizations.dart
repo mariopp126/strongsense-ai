@@ -325,8 +325,76 @@ class AppLocalizations {
   String get programVariation => _es ? 'Variación' : 'Variation';
   String get programAccessory => _es ? 'Accesorio' : 'Accessory';
   String get programReadOnly => _es
-      ? 'El editor de programas llegará en la próxima versión.'
-      : 'The program editor is coming in the next version.';
+      ? 'Toca el lápiz para editar tu programa.'
+      : 'Tap the pencil to edit your program.';
+  String get programEditProgram => _es ? 'Editar programa' : 'Edit program';
+  String get programProgramName => _es ? 'Nombre del programa' : 'Program name';
+  String get programDayTitle => _es ? 'Título del día' : 'Day title';
+  String get programExerciseName => _es ? 'Ejercicio' : 'Exercise';
+  String get programRole => _es ? 'Rol' : 'Role';
+  String get programAddDay => _es ? 'Añadir día' : 'Add day';
+  String get programRemoveDay => _es ? 'Eliminar día' : 'Remove day';
+  String get programAddExercise => _es ? 'Añadir ejercicio' : 'Add exercise';
+  String get programRemoveExercise =>
+      _es ? 'Eliminar ejercicio' : 'Remove exercise';
+  String get programDuplicate => _es ? 'Duplicar' : 'Duplicate';
+  String get programMoveUp => _es ? 'Subir' : 'Move up';
+  String get programMoveDown => _es ? 'Bajar' : 'Move down';
+  String get programEditSets => _es ? 'Editar series' : 'Edit sets';
+  String programEditSetsTitle(String exercise) =>
+      _es ? 'Editar series: $exercise' : 'Edit sets: $exercise';
+  String get programNewDay => _es ? 'Día nuevo' : 'New day';
+  String get programNewExercise => _es ? 'Ejercicio nuevo' : 'New exercise';
+  String get programRestoreDefault =>
+      _es ? 'Restaurar programa por defecto' : 'Restore default program';
+  String get programRestoreDefaultConfirm => _es
+      ? 'Esto reemplazará tu programa actual con el programa de 3 días. ¿Continuar?'
+      : 'This will replace your current program with the seeded 3-day program. Continue?';
+  String get programRestore => _es ? 'Restaurar' : 'Restore';
+  String get programSave => _es ? 'Guardar programa' : 'Save program';
+  String get programSaved => _es ? 'Programa guardado' : 'Program saved';
+  String get programSaveFailed =>
+      _es ? 'No se pudo guardar el programa.' : 'Could not save the program.';
+  String get programDiscard => _es ? 'Descartar' : 'Discard';
+  String get programStay => _es ? 'Seguir editando' : 'Keep editing';
+  String get programUnsavedTitle =>
+      _es ? 'Cambios sin guardar' : 'Unsaved changes';
+  String get programUnsavedBody => _es
+      ? '¿Descartar los cambios de este programa?'
+      : 'Discard your edits to this program?';
+  String get programDeleteDayTitle => _es ? 'Eliminar día' : 'Delete day';
+  String programDeleteDayConfirm(String title) => _es
+      ? '¿Eliminar "$title" y todos sus ejercicios?'
+      : 'Delete "$title" and all its exercises?';
+  String get programDeleteExerciseTitle =>
+      _es ? 'Eliminar ejercicio' : 'Delete exercise';
+  String programDeleteExerciseConfirm(String name) =>
+      _es ? '¿Eliminar "$name"?' : 'Delete "$name"?';
+  String get programNoMainLift => _es
+      ? 'Este día no tiene un ejercicio principal.'
+      : 'This day has no main lift.';
+  String get programNoSets => _es ? 'Sin series' : 'No sets';
+  String get programSet => _es ? 'Serie' : 'Set';
+  String get programReps => _es ? 'Reps' : 'Reps';
+  String get programRepsMax => _es ? 'Reps máx.' : 'Max reps';
+  String get programLoad => _es ? 'Carga' : 'Load';
+  String get programRpe => _es ? 'RPE máx.' : 'RPE cap';
+  String get programAddSet => _es ? 'Añadir serie' : 'Add set';
+  String get programRemoveSet => _es ? 'Eliminar serie' : 'Remove set';
+  String get programDuplicateSet => _es ? 'Duplicar serie' : 'Duplicate set';
+  String get programApply => _es ? 'Aplicar' : 'Apply';
+  String get programValidationRequired => _es ? 'Obligatorio' : 'Required';
+  String get programValidationInteger => _es ? 'Número entero' : 'Whole number';
+  String get programValidationDecimal =>
+      _es ? 'Número inválido' : 'Invalid number';
+  String get programValidationRange =>
+      _es ? 'Entre 1 y 100' : 'Between 1 and 100';
+  String get programValidationRepsMax =>
+      _es ? 'Debe ser ≥ reps' : 'Must be ≥ reps';
+  String get programValidationLoadRange =>
+      _es ? 'Carga fuera de rango' : 'Load out of range';
+  String get programValidationRpeRange =>
+      _es ? 'RPE entre 1 y 10' : 'RPE between 1 and 10';
   String get setsLabel => _es ? 'series' : 'sets';
   String signedSets(int delta) {
     final single = delta.abs() == 1;
