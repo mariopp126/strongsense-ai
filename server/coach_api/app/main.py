@@ -26,6 +26,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from app.auth import extract_bearer_token, require_auth
+from app.cache import build_cache, cache_key_for
 from app.coach import CoachError, generate_plan
 from app.config import Settings, get_settings
 from app.logging import (
@@ -322,13 +323,28 @@ async def coach_plan(payload: CoachRequest, request: Request) -> CoachResponse:
         )
     diagnostics: dict[str, Any] = {}
     request.state.llm_event = diagnostics
+    cache = getattr(request.app.state, "cache", None)
+    cache_key = cache_key_for(payload.model_dump(mode="json"))
+    if cache is not None:
+        cached = await cache.get(cache_key)
+        if cached is not None:
+            try:
+                return CoachResponse.model_validate(cached)
+            except Exception:
+                pass
     try:
-        return await generate_plan(payload, settings, diagnostics)
+        response = await generate_plan(payload, settings, diagnostics)
     except CoachError as exc:
         raise HTTPException(
             status_code=exc.status_code,
             detail={"code": exc.code, "message": exc.message},
         ) from exc
+    if cache is not None:
+        try:
+            await cache.set(cache_key, response.model_dump(mode="json"))
+        except Exception:
+            pass
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -355,6 +371,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.limiter = RateLimiter(settings.max_requests_per_min)
+    app.state.cache = build_cache(settings)
 
     # Middlewares are added inside-out: the last one added is the outermost.
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=MAX_BODY_BYTES)

@@ -6,3 +6,5 @@ uvicorn[standard]==0.54.0
 httpx==0.28.1
 pydantic==2.14.3
 pydantic-settings==2.16.3
+# Optional: PostgreSQL plan cache (only used when DATABASE_URL is set).
+asyncpg==0.30.0

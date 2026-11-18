@@ -40,6 +40,7 @@ _STRING_FIELDS = (
     "llm_fallback_provider",
     "llm_fallback_base_url",
     "llm_fallback_model",
+    "database_url",
 )
 
 
@@ -77,6 +78,8 @@ class Settings(BaseSettings):
     llm_fallback_api_key: SecretStr | None = None
     llm_fallback_model: str = ""
 
+    # --- Optional PostgreSQL plan cache ------------------------------------
+    database_url: str = ""
     # --- Validators ----------------------------------------------------
     @field_validator(*_STRING_FIELDS, mode="before")
     @classmethod
