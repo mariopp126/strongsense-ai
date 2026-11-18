@@ -329,6 +329,11 @@ class AppLocalizations {
       : 'Tap the pencil to edit your program.';
   String get programEditProgram => _es ? 'Editar programa' : 'Edit program';
   String get programProgramName => _es ? 'Nombre del programa' : 'Program name';
+  String get programFocus => _es ? 'Enfoque' : 'Focus';
+  String get programNoDays =>
+      _es ? 'Añade un día para empezar.' : 'Add a day to get started.';
+  String programCopyOf(String title) =>
+      _es ? 'Copia de $title' : 'Copy of $title';
   String get programDayTitle => _es ? 'Título del día' : 'Day title';
   String get programExerciseName => _es ? 'Ejercicio' : 'Exercise';
   String get programRole => _es ? 'Rol' : 'Role';

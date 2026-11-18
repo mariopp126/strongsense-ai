@@ -36,6 +36,39 @@ Widget _app(Widget home) {
   );
 }
 
+Future<void> _pumpProgram(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: _app(const ProgramScreen()),
+    ),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.byIcon(Icons.edit_rounded));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapKey(WidgetTester tester, String key) async {
+  final finder = find.byKey(ValueKey<String>(key));
+  if (finder.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(
+      finder,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+  }
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
+TrainingProgram _program(ProviderContainer container) =>
+    container.read(programControllerProvider);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -43,16 +76,7 @@ void main() {
     tester,
   ) async {
     final container = await _createContainer();
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: _app(const ProgramScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(Icons.edit_rounded));
-    await tester.pumpAndSettle();
+    await _pumpProgram(tester, container);
 
     await tester.tap(find.byIcon(Icons.tune_rounded).first);
     await tester.pumpAndSettle();
@@ -61,8 +85,9 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
     await tester.pumpAndSettle();
 
-    final program = container.read(programControllerProvider);
-    final squat = program.dayById('day-1')!.exerciseById('ex-squat')!;
+    final squat = _program(
+      container,
+    ).dayById('day-1')!.exerciseById('ex-squat')!;
     expect(squat.setTargets, hasLength(4));
     expect(squat.setTargets.first.loadKg, 80);
     expect(squat.setTargets[1].loadKg, 75);
@@ -96,7 +121,6 @@ void main() {
         ),
       ),
     );
-
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Open'));
@@ -114,5 +138,122 @@ void main() {
     expect(result![1].loadKg, 70);
     expect(result![2].reps, 15);
     expect(result![2].repsMax, 20);
+  });
+
+  testWidgets('renames a day and the program', (tester) async {
+    final container = await _createContainer();
+    await _pumpProgram(tester, container);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('day-title-day-1')),
+      'Lower A',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(_program(container).dayById('day-1')!.title, 'Lower A');
+  });
+
+  testWidgets('adds a day with a unique id and can restore the default', (
+    tester,
+  ) async {
+    final container = await _createContainer();
+    await _pumpProgram(tester, container);
+
+    await _tapKey(tester, 'program-add-day');
+
+    var program = _program(container);
+    expect(program.days, hasLength(4));
+    expect(program.days.map((day) => day.id).toSet(), hasLength(4));
+    expect(program.days.last.exercises, isEmpty);
+
+    await _tapKey(tester, 'program-restore-default');
+    await tester.tap(find.widgetWithText(FilledButton, 'Restore'));
+    await tester.pumpAndSettle();
+
+    program = _program(container);
+    expect(program.days, hasLength(3));
+    expect(program.days.map((day) => day.id), <String>[
+      'day-1',
+      'day-2',
+      'day-3',
+    ]);
+  });
+
+  testWidgets('duplicates a day with fresh exercise ids', (tester) async {
+    final container = await _createContainer();
+    await _pumpProgram(tester, container);
+
+    await _tapKey(tester, 'day-day-1-duplicate');
+
+    final program = _program(container);
+    expect(program.days, hasLength(4));
+    expect(program.days[1].title, 'Copy of Squat & Lower Body');
+    expect(program.days[1].exercises, hasLength(5));
+    final allExerciseIds = program.days
+        .expand((day) => day.exercises)
+        .map((exercise) => exercise.id)
+        .toList();
+    expect(allExerciseIds.toSet(), hasLength(allExerciseIds.length));
+  });
+
+  testWidgets('adds an exercise and switches its role to main', (tester) async {
+    final container = await _createContainer();
+    await _pumpProgram(tester, container);
+
+    await _tapKey(tester, 'day-day-1-add-exercise');
+
+    var day = _program(container).dayById('day-1')!;
+    expect(day.exercises, hasLength(6));
+    final added = day.exercises.last;
+    expect(added.role, ExerciseRole.accessory);
+
+    await _tapKey(tester, 'exercise-${added.id}-role');
+    await tester.tap(find.text('Main').last);
+    await tester.pumpAndSettle();
+
+    day = _program(container).dayById('day-1')!;
+    expect(day.exerciseById(added.id)!.role, ExerciseRole.main);
+  });
+
+  testWidgets('reorders and duplicates exercises', (tester) async {
+    final container = await _createContainer();
+    await _pumpProgram(tester, container);
+
+    await _tapKey(tester, 'exercise-ex-squat-down');
+
+    var day = _program(container).dayById('day-1')!;
+    expect(day.exercises.first.id, 'ex-pause-squat');
+    expect(day.exercises[1].id, 'ex-squat');
+
+    await _tapKey(tester, 'exercise-ex-squat-duplicate');
+
+    day = _program(container).dayById('day-1')!;
+    expect(day.exercises, hasLength(6));
+    final ids = day.exercises.map((exercise) => exercise.id).toList();
+    expect(ids.toSet(), hasLength(ids.length));
+  });
+
+  testWidgets('deleting an exercise requires confirmation', (tester) async {
+    final container = await _createContainer();
+    await _pumpProgram(tester, container);
+
+    await _tapKey(tester, 'exercise-ex-leg-extension-delete');
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(
+      _program(container).dayById('day-1')!.exerciseById('ex-leg-extension'),
+      isNotNull,
+    );
+
+    await _tapKey(tester, 'exercise-ex-leg-extension-delete');
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+
+    expect(
+      _program(container).dayById('day-1')!.exerciseById('ex-leg-extension'),
+      isNull,
+    );
   });
 }
