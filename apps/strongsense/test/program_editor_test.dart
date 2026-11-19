@@ -279,6 +279,21 @@ void main() {
     );
   });
 
+  testWidgets('renamed day title shows in read-only view', (tester) async {
+    final container = await _createContainer();
+    await _pumpProgram(tester, container);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('day-title-day-1')),
+      'Lower A',
+    );
+    await _save(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lower A'), findsOneWidget);
+    expect(find.text('Squat & Lower Body'), findsNothing);
+  });
+
   testWidgets('cancel discards a draft without touching the saved program', (
     tester,
   ) async {

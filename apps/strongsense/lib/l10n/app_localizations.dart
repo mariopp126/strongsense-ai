@@ -442,7 +442,10 @@ class AppLocalizations {
       ? 'El servidor guarda tu clave; la app nunca la ve.'
       : 'The server holds your key; the app never sees it.';
 
-  String dayTitle(String dayId, String fallback) {
+  String dayTitle(String dayId, String title) {
+    if (title.isNotEmpty) {
+      return title;
+    }
     const en = <String, String>{
       'day-1': 'Squat & Lower Body',
       'day-2': 'Bench & Upper Body',
@@ -453,7 +456,7 @@ class AppLocalizations {
       'day-2': 'Banca y tren superior',
       'day-3': 'Peso muerto y hombros',
     };
-    return (_es ? es : en)[dayId] ?? fallback;
+    return (_es ? es : en)[dayId] ?? dayId;
   }
 
   String dayShort(String dayId) {
