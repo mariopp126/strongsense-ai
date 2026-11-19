@@ -9,9 +9,9 @@ import 'package:strongsense_core/strongsense_core.dart';
 class _FakeCoachClient extends CoachApiClient {
   _FakeCoachClient({
     this.response,
+    // ignore: unused_element_parameter
     this.error,
-  }) // ignore: unused_element_parameter
-  : super(baseUrl: 'http://fake');
+  }) : super(baseUrl: 'http://fake');
 
   final CoachResponse? response;
   final Object? error;
