@@ -461,6 +461,7 @@ class Health(BaseModel):
     contractVersion: int = CONTRACT_VERSION
     llmConfigured: bool
     providers: list[ProviderInfo] = Field(default_factory=list)
+    cacheBackend: str = "none"
 
 
 # ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ def test_health_when_not_configured(client: TestClient) -> None:
         "contractVersion": 1,
         "llmConfigured": False,
         "providers": [],
+        "cacheBackend": "memory",
     }
 
 
@@ -34,6 +35,7 @@ def test_health_when_configured(
     assert body["status"] == "ok"
     assert body["llmConfigured"] is True
     assert body["contractVersion"] == 1
+    assert body["cacheBackend"] == "memory"
     assert body["providers"] == [
         {"name": "openai_compatible", "model": "test-model"},
         {"name": "openai_compatible", "model": "fallback-model"},

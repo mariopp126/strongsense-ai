@@ -16,7 +16,8 @@ import hashlib
 import json
 import math
 import time
-from contextlib import suppress
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
@@ -45,6 +46,7 @@ from app.schemas import (
     CoachRequest,
     CoachResponse,
     Health,
+    PlanSource,
     ProviderInfo,
     validation_issues,
 )
@@ -294,13 +296,29 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 router = APIRouter()
 
 
+def _cache_backend_name(cache: Any) -> str:
+    """Return a human-readable cache backend name (never settings/URLs)."""
+    if cache is None:
+        return "none"
+    name = type(cache).__name__
+    if "Postgres" in name:
+        return "postgres"
+    if "InMemory" in name:
+        return "memory"
+    if "Null" in name:
+        return "none"
+    return "unknown"
+
+
 @router.get("/health", response_model=Health, tags=["system"], summary="Service health")
 async def health(request: Request) -> Health:
     """Report service status and the configured provider/model pairs (never keys)."""
     settings: Settings = request.app.state.settings
+    cache = getattr(request.app.state, "cache", None)
     return Health(
         llmConfigured=settings.llm_configured,
         providers=[ProviderInfo(**provider) for provider in settings.providers()],
+        cacheBackend=_cache_backend_name(cache),
     )
 
 
@@ -340,7 +358,7 @@ async def coach_plan(payload: CoachRequest, request: Request) -> CoachResponse:
             status_code=exc.status_code,
             detail={"code": exc.code, "message": exc.message},
         ) from exc
-    if cache is not None:
+    if cache is not None and response.source != PlanSource.RULES_FALLBACK:
         with suppress(Exception):
             await cache.set(cache_key, response.model_dump(mode="json"))
     return response
@@ -349,6 +367,15 @@ async def coach_plan(payload: CoachRequest, request: Request) -> CoachResponse:
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    yield
+    cache = getattr(app.state, "cache", None)
+    if cache is not None:
+        with suppress(Exception):
+            await cache.close()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -367,6 +394,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url="/docs",
         redoc_url=None,
         openapi_url="/openapi.json",
+        lifespan=_lifespan,
     )
     app.state.settings = settings
     app.state.limiter = RateLimiter(settings.max_requests_per_min)

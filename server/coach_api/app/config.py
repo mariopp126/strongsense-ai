@@ -80,6 +80,7 @@ class Settings(BaseSettings):
 
     # --- Optional PostgreSQL plan cache ------------------------------------
     database_url: str = ""
+    cache_ttl_seconds: int = Field(default=86400, ge=0)
     # --- Validators ----------------------------------------------------
     @field_validator(*_STRING_FIELDS, mode="before")
     @classmethod
