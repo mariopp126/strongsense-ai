@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:strongsense_core/strongsense_core.dart';
@@ -19,104 +21,143 @@ class ProgramScreen extends ConsumerStatefulWidget {
 
 class _ProgramScreenState extends ConsumerState<ProgramScreen> {
   bool _editing = false;
+  TrainingProgram? _draft;
 
-  TrainingProgram get _program => ref.read(programControllerProvider);
+  TrainingProgram get _saved => ref.read(programControllerProvider);
 
-  Future<void> _persist(TrainingProgram program) =>
-      ref.read(programControllerProvider.notifier).save(program);
+  TrainingProgram get _current => _draft ?? _saved;
 
-  TrainingProgram _mapDay(
-    TrainingProgram program,
-    String dayId,
-    ProgramDay Function(ProgramDay day) transform,
-  ) {
-    return program.copyWith(
-      days: program.days
-          .map((day) => day.id == dayId ? transform(day) : day)
-          .toList(growable: false),
-    );
+  bool get _isDirty {
+    if (!_editing || _draft == null) {
+      return false;
+    }
+    return jsonEncode(_draft!.toJson()) != jsonEncode(_saved.toJson());
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final program = ref.watch(programControllerProvider);
+    final saved = ref.watch(programControllerProvider);
+    final program = _editing ? (_draft ?? saved) : saved;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.programTitle),
-        actions: <Widget>[
-          IconButton(
-            tooltip: _editing ? l10n.done : l10n.edit,
-            icon: Icon(_editing ? Icons.check_rounded : Icons.edit_rounded),
-            onPressed: () => setState(() => _editing = !_editing),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          SsSpacing.lg,
-          SsSpacing.lg,
-          SsSpacing.lg,
-          SsSpacing.section,
+    return PopScope<Object?>(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) {
+          return;
+        }
+        final discard = await _confirmDiscard();
+        if (!discard || !context.mounted) {
+          return;
+        }
+        Navigator.of(context).pop();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(l10n.programTitle),
+          actions: <Widget>[
+            if (!_editing)
+              IconButton(
+                key: const ValueKey<String>('program-edit'),
+                tooltip: l10n.edit,
+                icon: const Icon(Icons.edit_rounded),
+                onPressed: _startEditing,
+              ),
+            if (_editing) ...<Widget>[
+              IconButton(
+                key: const ValueKey<String>('program-cancel'),
+                tooltip: l10n.programDiscard,
+                icon: const Icon(Icons.close_rounded),
+                onPressed: _cancelEditing,
+              ),
+              IconButton(
+                key: const ValueKey<String>('program-save'),
+                tooltip: l10n.save,
+                icon: const Icon(Icons.check_rounded),
+                onPressed: _saveDraft,
+              ),
+            ],
+          ],
         ),
-        children: <Widget>[
-          if (!_editing)
-            SsBanner(
-              message: l10n.programReadOnly,
-              color: SsColors.blue800,
-              background: SsColors.blue100,
-              icon: Icons.info_outline_rounded,
-            ),
-          if (!_editing) const SizedBox(height: SsSpacing.lg),
-          if (_editing) ...<Widget>[
-            TextFormField(
-              key: const ValueKey<String>('program-name'),
-              initialValue: program.name,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: l10n.programProgramName,
-                prefixIcon: const Icon(Icons.fitness_center_rounded),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            SsSpacing.lg,
+            SsSpacing.lg,
+            SsSpacing.lg,
+            SsSpacing.section,
+          ),
+          children: <Widget>[
+            if (!_editing)
+              SsBanner(
+                message: l10n.programReadOnly,
+                color: SsColors.blue800,
+                background: SsColors.blue100,
+                icon: Icons.info_outline_rounded,
               ),
-              onFieldSubmitted: _renameProgram,
-            ),
-            const SizedBox(height: SsSpacing.lg),
-          ],
-          for (var index = 0; index < program.days.length; index++) ...<Widget>[
-            _buildDay(
-              context,
-              l10n,
-              theme,
-              program,
-              program.days[index],
-              index,
-            ),
-            const SizedBox(height: SsSpacing.lg),
-          ],
-          if (_editing && program.days.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: SsSpacing.lg),
-              child: Text(l10n.programNoDays, textAlign: TextAlign.center),
-            ),
-          if (_editing)
-            Padding(
-              padding: const EdgeInsets.only(bottom: SsSpacing.sm),
-              child: OutlinedButton.icon(
-                key: const ValueKey<String>('program-add-day'),
-                onPressed: _addDay,
-                icon: const Icon(Icons.add_rounded),
-                label: Text(l10n.programAddDay),
+            if (!_editing) const SizedBox(height: SsSpacing.lg),
+            if (_editing) ...<Widget>[
+              TextFormField(
+                key: const ValueKey<String>('program-name'),
+                initialValue: program.name,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: l10n.programProgramName,
+                  prefixIcon: const Icon(Icons.fitness_center_rounded),
+                ),
+                onChanged: _renameProgram,
               ),
-            ),
-          if (_editing)
-            OutlinedButton.icon(
-              key: const ValueKey<String>('program-restore-default'),
-              onPressed: _restoreDefault,
-              icon: const Icon(Icons.restore_rounded),
-              label: Text(l10n.programRestoreDefault),
-            ),
-        ],
+              const SizedBox(height: SsSpacing.lg),
+            ],
+            for (
+              var index = 0;
+              index < program.days.length;
+              index++
+            ) ...<Widget>[
+              _buildDay(
+                context,
+                l10n,
+                theme,
+                program,
+                program.days[index],
+                index,
+              ),
+              const SizedBox(height: SsSpacing.lg),
+            ],
+            if (_editing && program.days.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: SsSpacing.lg),
+                child: Text(l10n.programNoDays, textAlign: TextAlign.center),
+              ),
+            if (_editing)
+              Padding(
+                padding: const EdgeInsets.only(bottom: SsSpacing.sm),
+                child: OutlinedButton.icon(
+                  key: const ValueKey<String>('program-add-day'),
+                  onPressed: _addDay,
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(l10n.programAddDay),
+                ),
+              ),
+            if (_editing)
+              Padding(
+                padding: const EdgeInsets.only(bottom: SsSpacing.sm),
+                child: OutlinedButton.icon(
+                  key: const ValueKey<String>('program-restore-default'),
+                  onPressed: _restoreDefault,
+                  icon: const Icon(Icons.restore_rounded),
+                  label: Text(l10n.programRestoreDefault),
+                ),
+              ),
+            if (_editing)
+              FilledButton.icon(
+                key: const ValueKey<String>('program-save-bottom'),
+                onPressed: _saveDraft,
+                icon: const Icon(Icons.save_rounded),
+                label: Text(l10n.programSave),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -145,7 +186,7 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
                         decoration: InputDecoration(
                           labelText: l10n.programDayTitle,
                         ),
-                        onFieldSubmitted: (value) => _renameDay(day, value),
+                        onChanged: (value) => _renameDay(day, value),
                       )
                     : Text(
                         l10n.dayTitle(day.id, day.title),
@@ -314,7 +355,7 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
                       decoration: InputDecoration(
                         labelText: l10n.programExerciseName,
                       ),
-                      onFieldSubmitted: (value) =>
+                      onChanged: (value) =>
                           _renameExercise(day, exercise, value),
                     )
                   : Text(
@@ -404,56 +445,176 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
   }
 
   // -------------------------------------------------------------------------
+  // Draft lifecycle
+  // -------------------------------------------------------------------------
+
+  void _startEditing() {
+    setState(() {
+      _draft = _saved;
+      _editing = true;
+    });
+  }
+
+  Future<void> _cancelEditing() async {
+    if (_isDirty) {
+      final discard = await _confirmDiscard();
+      if (!discard) {
+        return;
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _editing = false;
+      _draft = null;
+    });
+  }
+
+  Future<void> _saveDraft() async {
+    final l10n = AppLocalizations.of(context);
+    final draft = _draft;
+    if (draft == null) {
+      setState(() => _editing = false);
+      return;
+    }
+    final error = _validate(draft, l10n);
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    try {
+      await ref.read(programControllerProvider.notifier).save(draft);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.programSaveFailed)));
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _editing = false;
+      _draft = null;
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.programSaved)));
+  }
+
+  Future<bool> _confirmDiscard() async {
+    final l10n = AppLocalizations.of(context);
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.programUnsavedTitle),
+        content: Text(l10n.programUnsavedBody),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.programStay),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.programDiscard),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  String? _validate(TrainingProgram draft, AppLocalizations l10n) {
+    if (draft.days.isEmpty) {
+      return l10n.programValidationNoDays;
+    }
+    final dayIds = <String>{};
+    final exerciseIds = <String>{};
+    for (final day in draft.days) {
+      if (day.title.trim().isEmpty) {
+        return l10n.programValidationDayTitle;
+      }
+      if (!dayIds.add(day.id)) {
+        return l10n.programValidationDuplicateId;
+      }
+      for (final exercise in day.exercises) {
+        if (exercise.name.trim().isEmpty) {
+          return l10n.programValidationExerciseName;
+        }
+        if (!exerciseIds.add(exercise.id)) {
+          return l10n.programValidationDuplicateId;
+        }
+        for (final target in exercise.setTargets) {
+          try {
+            target.validate();
+          } on ArgumentError {
+            return l10n.programValidationExercise(exercise.name);
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  void _updateDraft(TrainingProgram next) {
+    setState(() => _draft = next);
+  }
+
+  // -------------------------------------------------------------------------
   // Program metadata
   // -------------------------------------------------------------------------
 
-  Future<void> _renameProgram(String value) async {
-    final trimmed = value.trim();
-    final program = _program;
-    if (trimmed.isEmpty || trimmed == program.name) {
+  void _renameProgram(String value) {
+    final draft = _current;
+    if (value == draft.name) {
       return;
     }
-    await _persist(program.copyWith(name: trimmed));
+    _updateDraft(draft.copyWith(name: value));
   }
 
   // -------------------------------------------------------------------------
   // Days
   // -------------------------------------------------------------------------
 
-  Future<void> _renameDay(ProgramDay day, String value) async {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty || trimmed == day.title) {
+  void _renameDay(ProgramDay day, String value) {
+    if (value == day.title) {
       return;
     }
-    await _persist(
-      _mapDay(_program, day.id, (current) => current.copyWith(title: trimmed)),
+    _updateDraft(
+      _mapDay(_current, day.id, (current) => current.copyWith(title: value)),
     );
   }
 
-  Future<void> _setDayFocus(ProgramDay day, String focus) async {
+  void _setDayFocus(ProgramDay day, String focus) {
     if (focus == day.focus) {
       return;
     }
-    await _persist(
-      _mapDay(_program, day.id, (current) => current.copyWith(focus: focus)),
+    _updateDraft(
+      _mapDay(_current, day.id, (current) => current.copyWith(focus: focus)),
     );
   }
 
-  Future<void> _addDay() async {
+  void _addDay() {
     final l10n = AppLocalizations.of(context);
-    final program = _program;
+    final program = _current;
     final day = ProgramDay(
       id: _uniqueId('day', program.days.map((day) => day.id)),
       title: l10n.programNewDay,
       focus: 'full',
       exercises: const <ProgramExercise>[],
     );
-    await _persist(program.copyWith(days: <ProgramDay>[...program.days, day]));
+    _updateDraft(program.copyWith(days: <ProgramDay>[...program.days, day]));
   }
 
-  Future<void> _duplicateDay(ProgramDay day) async {
+  void _duplicateDay(ProgramDay day) {
     final l10n = AppLocalizations.of(context);
-    final program = _program;
+    final program = _current;
     final takenDayIds = program.days.map((current) => current.id).toSet();
     final copy = ProgramDay(
       id: _uniqueId('day', takenDayIds),
@@ -463,7 +624,7 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     );
     final index = program.days.indexWhere((current) => current.id == day.id);
     final days = List<ProgramDay>.of(program.days)..insert(index + 1, copy);
-    await _persist(program.copyWith(days: days));
+    _updateDraft(program.copyWith(days: days));
   }
 
   Future<void> _removeDay(ProgramDay day) async {
@@ -475,8 +636,8 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     if (!confirmed) {
       return;
     }
-    final program = _program;
-    await _persist(
+    final program = _current;
+    _updateDraft(
       program.copyWith(
         days: program.days
             .where((current) => current.id != day.id)
@@ -485,8 +646,8 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     );
   }
 
-  Future<void> _moveDay(ProgramDay day, int delta) async {
-    final program = _program;
+  void _moveDay(ProgramDay day, int delta) {
+    final program = _current;
     final index = program.days.indexWhere((current) => current.id == day.id);
     final target = index + delta;
     if (index < 0 || target < 0 || target >= program.days.length) {
@@ -495,7 +656,7 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     final days = List<ProgramDay>.of(program.days);
     final moved = days.removeAt(index);
     days.insert(target, moved);
-    await _persist(program.copyWith(days: days));
+    _updateDraft(program.copyWith(days: days));
   }
 
   Future<void> _restoreDefault() async {
@@ -508,54 +669,41 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     if (!confirmed) {
       return;
     }
-    await _persist(ProgramSeed.powerbuilding());
+    _updateDraft(ProgramSeed.powerbuilding());
   }
 
   // -------------------------------------------------------------------------
   // Exercises
   // -------------------------------------------------------------------------
 
-  Future<void> _renameExercise(
-    ProgramDay day,
-    ProgramExercise exercise,
-    String value,
-  ) async {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty || trimmed == exercise.name) {
+  void _renameExercise(ProgramDay day, ProgramExercise exercise, String value) {
+    if (value == exercise.name) {
       return;
     }
-    await _updateExercise(
-      day,
-      exercise,
-      (current) => current.copyWith(name: trimmed),
-    );
+    _updateExercise(day, exercise, (current) => current.copyWith(name: value));
   }
 
-  Future<void> _changeRole(
+  void _changeRole(
     ProgramDay day,
     ProgramExercise exercise,
     ExerciseRole role,
-  ) async {
+  ) {
     if (role == exercise.role) {
       return;
     }
-    await _updateExercise(
-      day,
-      exercise,
-      (current) => current.copyWith(role: role),
-    );
+    _updateExercise(day, exercise, (current) => current.copyWith(role: role));
   }
 
-  Future<void> _addExercise(ProgramDay day) async {
+  void _addExercise(ProgramDay day) {
     final l10n = AppLocalizations.of(context);
-    final program = _program;
+    final program = _current;
     final exercise = ProgramExercise(
       id: _uniqueId('ex', _exerciseIds(program)),
       name: l10n.programNewExercise,
       role: ExerciseRole.accessory,
       setTargets: const <SetTarget>[SetTarget(reps: 10)],
     );
-    await _persist(
+    _updateDraft(
       _mapDay(
         program,
         day.id,
@@ -566,11 +714,8 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     );
   }
 
-  Future<void> _duplicateExercise(
-    ProgramDay day,
-    ProgramExercise exercise,
-  ) async {
-    final program = _program;
+  void _duplicateExercise(ProgramDay day, ProgramExercise exercise) {
+    final program = _current;
     final copy = ProgramExercise(
       id: _uniqueId('ex', _exerciseIds(program)),
       name: exercise.name,
@@ -578,7 +723,7 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
       setTargets: exercise.setTargets,
       notes: exercise.notes,
     );
-    await _persist(
+    _updateDraft(
       _mapDay(program, day.id, (current) {
         final index = current.exercises.indexWhere(
           (item) => item.id == exercise.id,
@@ -599,9 +744,9 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     if (!confirmed) {
       return;
     }
-    await _persist(
+    _updateDraft(
       _mapDay(
-        _program,
+        _current,
         day.id,
         (current) => current.copyWith(
           exercises: current.exercises
@@ -612,14 +757,9 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     );
   }
 
-  Future<void> _moveExercise(
-    ProgramDay day,
-    ProgramExercise exercise,
-    int delta,
-  ) async {
-    final program = _program;
-    await _persist(
-      _mapDay(program, day.id, (current) {
+  void _moveExercise(ProgramDay day, ProgramExercise exercise, int delta) {
+    _updateDraft(
+      _mapDay(_current, day.id, (current) {
         final index = current.exercises.indexWhere(
           (item) => item.id == exercise.id,
         );
@@ -635,14 +775,14 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     );
   }
 
-  Future<void> _updateExercise(
+  void _updateExercise(
     ProgramDay day,
     ProgramExercise exercise,
     ProgramExercise Function(ProgramExercise exercise) transform,
   ) {
-    return _persist(
+    _updateDraft(
       _mapDay(
-        _program,
+        _current,
         day.id,
         (current) => current.copyWith(
           exercises: current.exercises
@@ -664,7 +804,7 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     if (newTargets == null) {
       return;
     }
-    await _updateExercise(
+    _updateExercise(
       day,
       exercise,
       (current) => current.copyWith(setTargets: newTargets),
@@ -675,12 +815,23 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
   // Helpers
   // -------------------------------------------------------------------------
 
+  TrainingProgram _mapDay(
+    TrainingProgram program,
+    String dayId,
+    ProgramDay Function(ProgramDay day) transform,
+  ) {
+    return program.copyWith(
+      days: program.days
+          .map((day) => day.id == dayId ? transform(day) : day)
+          .toList(growable: false),
+    );
+  }
+
   List<ProgramExercise> _copyExercises(
     TrainingProgram program,
     List<ProgramExercise> exercises,
   ) {
-    final taken = _exerciseIds(program);
-    final ids = <String>{...taken};
+    final ids = <String>{..._exerciseIds(program)};
     return exercises
         .map((exercise) {
           final id = _uniqueId('ex', ids);

@@ -400,6 +400,20 @@ class AppLocalizations {
       _es ? 'Carga fuera de rango' : 'Load out of range';
   String get programValidationRpeRange =>
       _es ? 'RPE entre 1 y 10' : 'RPE between 1 and 10';
+  String get programValidationNoDays => _es
+      ? 'El programa necesita al menos un día.'
+      : 'The program needs at least one day.';
+  String get programValidationDayTitle => _es
+      ? 'El título del día no puede estar vacío.'
+      : 'Day title cannot be empty.';
+  String get programValidationExerciseName => _es
+      ? 'El nombre del ejercicio no puede estar vacío.'
+      : 'Exercise name cannot be empty.';
+  String get programValidationDuplicateId => _es
+      ? 'Hay identificadores duplicados en el programa.'
+      : 'The program contains duplicate identifiers.';
+  String programValidationExercise(String name) =>
+      _es ? 'Revisa las series de $name.' : 'Check the sets for $name.';
   String get setsLabel => _es ? 'series' : 'sets';
   String signedSets(int delta) {
     final single = delta.abs() == 1;
