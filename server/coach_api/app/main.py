@@ -5,8 +5,9 @@ Endpoints:
 * ``GET /health`` — service status, configured providers (never keys).
 * ``POST /v1/coach/plan`` — validated, clamped LLM coach plan.
 
-The app is stateless: nothing is persisted. Cross cutting concerns are all
-middlewares so they apply to every route (and to each other's error responses):
+The app is stateless **by default**: nothing is persisted. When `DATABASE_URL` is set,
+an optional PostgreSQL plan cache may store coaching responses. Cross cutting concerns
+are all middlewares so they apply to every route (and to each other's error responses):
 body-size guard, per-client rate limit, CORS, then request-id logging.
 """
 

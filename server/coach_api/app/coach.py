@@ -1,8 +1,9 @@
 """Coach orchestration: request -> LLM -> validation -> safety clamp -> response.
 
-The service is stateless. It never persists anything and it never invents training
-rules: it enriches the app's deterministic baseline with an LLM plan, clamps it, and
-falls back to the baseline when the provider is unavailable.
+The service enriches the app's deterministic baseline with an LLM plan, clamps it,
+and falls back to the baseline when the provider is unavailable. It never invents
+training rules. An optional PostgreSQL plan cache (enabled via `DATABASE_URL`) may
+store coaching responses; the cache is disabled by default.
 """
 
 from __future__ import annotations

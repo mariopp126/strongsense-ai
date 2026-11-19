@@ -168,6 +168,8 @@ Keys live **only** in `server/coach_api/.env` (gitignored). The app never sees t
 | `COACH_API_TOKEN` | Optional bearer token to protect the proxy |
 | `ALLOWED_ORIGINS` | CORS allowlist (defaults to localhost:5173) |
 | `MAX_REQUESTS_PER_MIN` | Per-client rate limit (default 30) |
+| `DATABASE_URL` | PostgreSQL URL enabling the optional plan cache; empty = in-memory cache only |
+| `CACHE_TTL_SECONDS` | Cache entry TTL in seconds; default 86400 (24h), 0 disables expiry |
 
 Ready-to-use `LLM_BASE_URL` values:
 

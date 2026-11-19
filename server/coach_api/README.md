@@ -1,7 +1,8 @@
 # StrongSense Coach API
 
-Stateless FastAPI service that enriches the StrongSense AI app's deterministic
-training plan with a validated, safety-clamped LLM coaching plan.
+FastAPI service that enriches the StrongSense AI app's deterministic
+training plan with a validated, safety-clamped LLM coaching plan, with an
+optional PostgreSQL plan cache.
 
 The Flutter app owns all training rules and always works offline. This service only:
 
@@ -12,8 +13,11 @@ The Flutter app owns all training rules and always works offline. This service o
 5. applies the contract safety clamp (`app/safety.py`),
 6. returns a normalized `CoachPlan` — or the baseline as a rules fallback.
 
-The service is **stateless**: no database, no persistence, no PII. The wire contract
-lives in [`docs/contract/contract.md`](../../docs/contract/contract.md); its example
+The service is **stateless by default**: no database, no persistence, no PII. When
+`DATABASE_URL` is set it optionally caches coaching responses in PostgreSQL
+(`coach_plan_cache`); cached entries contain only structured training data, expire
+after `CACHE_TTL_SECONDS`, and `rules_fallback` responses are never cached.
+The wire contract lives in [`docs/contract/contract.md`](../../docs/contract/contract.md); its example
 payloads are loaded by both the Dart and Python test suites.
 
 - Service: `strongsense-coach-api` version `0.1.0`
@@ -64,6 +68,7 @@ the app keeps using its offline coach.
   "version": "0.1.0",
   "contractVersion": 1,
   "llmConfigured": true,
+  "cacheBackend": "memory",
   "providers": [{ "name": "openai_compatible", "model": "gpt-4.1-mini" }]
 }
 ```
@@ -169,6 +174,8 @@ The primary is tried first; the fallback is tried when it fails. The whole call
 | `LLM_TEMPERATURE` | `0.4` | Sampling temperature. |
 | `LLM_MAX_TOKENS` | `900` | Response token budget. |
 | `LLM_FALLBACK_*` | empty | Optional second provider profile. |
+| `DATABASE_URL` | empty | PostgreSQL URL enabling the optional plan cache; empty = in-memory cache only. |
+| `CACHE_TTL_SECONDS` | `86400` | Cache entry TTL in seconds; `0` disables expiry. |
 
 ## Docker
 
@@ -198,8 +205,10 @@ them with `--env-file` or your orchestrator's secret store.
   single uvicorn worker). For multiple workers/replicas put a shared limiter at the
   proxy or accept per-process budgets.
 - CORS is an explicit allowlist; credentials are disabled.
-- The service never stores training data and never talks to anything except the
-  configured LLM endpoint.
+- The service never stores training data unless the optional PostgreSQL plan cache
+  is enabled via `DATABASE_URL`; cached entries contain only structured training
+  data and expire after `CACHE_TTL_SECONDS`, and it never talks to anything except
+  the configured LLM endpoint (and the cache database when enabled).
 
 ## Testing
 

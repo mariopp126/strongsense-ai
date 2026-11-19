@@ -8,7 +8,7 @@ StrongSense AI has three deployable parts:
 |---|---|---|
 | App | Flutter 3.41 / Dart 3.11 | UI, navigation, local persistence, deterministic training logic, offline coaching |
 | Domain core | Pure Dart package | Models, readiness, auto-regulation, progression, safety bounds, contract codec |
-| Coach API | Python 3.12 / FastAPI | Optional LLM proxy: prompt building, provider calls, validation, clamping |
+| Coach API | Python 3.12 / FastAPI | Optional LLM proxy: prompt building, provider calls, validation, clamping, and an optional PostgreSQL plan cache. |
 
 The design principle is **offline-first, rules-first**:
 
@@ -135,18 +135,26 @@ prompt.py      system + user prompt construction
 llm.py         provider adapters, retries, JSON decoding, repair retry
 safety.py      clamp implementation + server-owned disclaimer
 coach.py       orchestration and fallback ladder
+cache.py       optional in-memory/PostgreSQL plan cache with TTL
 auth.py        optional bearer token
 ratelimit.py   in-memory token bucket
 logging.py     structured logs without bodies or secrets
 ```
 
-The service is stateless: no database, no saved sessions.
+The service is stateless **by default**: no database and no saved sessions. When
+`DATABASE_URL` is set, an optional PostgreSQL plan cache (`coach_plan_cache`)
+stores SHA-256-keyed coaching responses so identical requests do not re-trigger
+the LLM. The cache is disabled by default (in-memory only), expires entries after
+`CACHE_TTL_SECONDS` (default 24 hours, 0 disables expiry), never stores
+`rules_fallback` responses, and closes its connection pool on shutdown.
 
 ## Deployment
 
 - App: `flutter build web --release` → any static host; Android APK/AAB; iOS via macOS.
 - Server: Docker or `uvicorn`. For anything beyond localhost, terminate TLS, set
   `COACH_API_TOKEN`, restrict `ALLOWED_ORIGINS`, and keep the key in a secret store.
+  Set `DATABASE_URL` to a PostgreSQL instance to enable the optional plan cache, and
+  `CACHE_TTL_SECONDS` to control how long cached plans are kept (default 86400s).
 - CORS defaults to `http://localhost:5173`, matching `flutter run --web-port 5173`.
 
 ## Testing strategy

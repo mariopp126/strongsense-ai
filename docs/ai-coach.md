@@ -10,7 +10,7 @@ why the model can never produce an unsafe session.
 |---|---|---|
 | `strongsense_core` (Dart) | Readiness, matrix, deload, progression, substitutions, safety bounds | Call the network |
 | Flutter app | Presenting plans, user overrides, local persistence | Trust model output without clamping |
-| FastAPI service (Python) | Prompting, provider calls, JSON validation, server-side clamp | Decide training rules or persist data |
+| FastAPI service (Python) | Prompting, provider calls, JSON validation, server-side clamp, optional plan cache | Decide training rules |
 | LLM | Wording, prioritisation, extra tips | Change a load beyond the clamp, add exercises, invent a disclaimer |
 
 ## Request pipeline
@@ -142,7 +142,11 @@ only knows the server URL.
 
 ## Privacy & retention
 
-- No user accounts and no server database: nothing is stored server-side.
+- No user accounts. Coaching plans may be cached server-side in an optional
+  PostgreSQL table (`coach_plan_cache`) when `DATABASE_URL` is set; cached entries
+  contain only structured training data (no names, emails or device IDs), expire after
+  `CACHE_TTL_SECONDS`, and `rules_fallback` responses are never cached. Without
+  `DATABASE_URL` nothing is stored server-side.
 - Logs contain request id, route, status, provider, model and latency only.
 - AI coaching is opt-in in Settings; disabling it sends nothing.
 - The payload preview is documented in the README; the exact context is in
