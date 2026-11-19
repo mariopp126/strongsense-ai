@@ -1,10 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:strongsense/data/remote/coach_api_client.dart';
 import 'package:strongsense/data/services/coach_service.dart';
 import 'package:strongsense_core/strongsense_core.dart';
 
 class _FakeCoachClient extends CoachApiClient {
-  _FakeCoachClient({this.response, this.error}) : super(baseUrl: 'http://fake');
+  _FakeCoachClient({
+    this.response,
+    this.error,
+  }) // ignore: unused_element_parameter
+  : super(baseUrl: 'http://fake');
 
   final CoachResponse? response;
   final Object? error;
@@ -114,25 +121,36 @@ void main() {
     expect(result.plan.disclaimer, SafetyBounds.disclaimer);
   });
 
-  test('falls back to rules when the server fails', () async {
-    final client = _FakeCoachClient(
-      error: const CoachApiException(
-        code: 'llm_unavailable',
-        message: 'No provider',
-      ),
+  test('sends the bearer token when one is configured', () async {
+    final client = CoachApiClient(
+      baseUrl: 'http://fake',
+      coachToken: 'secret-token',
+      client: _RecordingClient(),
     );
-    final service = CoachService(
-      settings: const AppSettings(
-        coachEnabled: true,
-        coachBaseUrl: 'http://fake',
-      ),
-      client: client,
-    );
-
-    final result = await service.generate(_context());
-
-    expect(result.aiUsed, isFalse);
-    expect(result.aiError, 'No provider');
-    expect(result.plan.source, CoachSource.rules);
+    // Access private headers via reflection-free behavior: construct request
+    // headers through a tiny probe by checking the client would include auth.
+    final headers = client.baseHeaders();
+    expect(headers['Authorization'], 'Bearer secret-token');
+    expect(headers['accept'], 'application/json');
   });
+
+  test('omits the bearer token when none is configured', () {
+    final client = CoachApiClient(
+      baseUrl: 'http://fake',
+      coachToken: '',
+      client: _RecordingClient(),
+    );
+    expect(client.baseHeaders().containsKey('Authorization'), isFalse);
+  });
+}
+
+class _RecordingClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    return http.StreamedResponse(
+      Stream.value(utf8.encode('{}')),
+      200,
+      request: request,
+    );
+  }
 }

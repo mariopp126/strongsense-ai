@@ -22,8 +22,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _urlController;
   late final TextEditingController _weightController;
+  late final TextEditingController _tokenController;
   Timer? _debounce;
   bool _testing = false;
+  bool _tokenVisible = false;
 
   @override
   void initState() {
@@ -31,6 +33,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final settings = ref.read(settingsControllerProvider);
     _nameController = TextEditingController(text: settings.userName);
     _urlController = TextEditingController(text: settings.coachBaseUrl);
+    _tokenController = TextEditingController(text: settings.coachToken);
     _weightController = TextEditingController(
       text: settings.bodyWeightKg == null
           ? ''
@@ -43,6 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _debounce?.cancel();
     _nameController.dispose();
     _urlController.dispose();
+    _tokenController.dispose();
     _weightController.dispose();
     super.dispose();
   }
@@ -273,6 +277,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onChanged: (value) => _debounced(
                     () =>
                         _update(settings.copyWith(coachBaseUrl: value.trim())),
+                  ),
+                ),
+                const SizedBox(height: SsSpacing.sm),
+                TextField(
+                  key: const ValueKey<String>('coach-token'),
+                  controller: _tokenController,
+                  obscureText: !_tokenVisible,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    labelText: l10n.settingsCoachToken,
+                    hintText: l10n.settingsCoachTokenHint,
+                    prefixIcon: const Icon(Icons.key_outlined),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _tokenVisible
+                            ? Icons.visibility_off_rounded
+                            : Icons.visibility_rounded,
+                        size: 18,
+                      ),
+                      onPressed: () =>
+                          setState(() => _tokenVisible = !_tokenVisible),
+                    ),
+                  ),
+                  onChanged: (value) => _debounced(
+                    () => _update(settings.copyWith(coachToken: value.trim())),
                   ),
                 ),
                 const SizedBox(height: SsSpacing.sm),

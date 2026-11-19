@@ -441,6 +441,11 @@ class AppLocalizations {
   String get settingsCoachHint => _es
       ? 'El servidor guarda tu clave; la app nunca la ve.'
       : 'The server holds your key; the app never sees it.';
+  String get settingsCoachToken => _es ? 'Token de acceso' : 'Access token';
+  String get settingsCoachTokenHint =>
+      _es ? 'Token para el servidor de coaching' : 'Coach server access token';
+  String get settingsCoachTokenShow => _es ? 'Mostrar' : 'Show';
+  String get settingsCoachTokenHide => _es ? 'Ocultar' : 'Hide';
 
   String dayTitle(String dayId, String title) {
     if (title.isNotEmpty) {

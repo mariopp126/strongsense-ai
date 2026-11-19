@@ -11,6 +11,7 @@ class AppSettings {
     this.deloadPolicy = DeloadPolicy.everyFourthWeek,
     this.coachEnabled = false,
     this.coachBaseUrl = 'http://127.0.0.1:8080',
+    this.coachToken = '',
     this.theme = 'system',
     this.onboardingComplete = false,
     this.userName = '',
@@ -28,6 +29,7 @@ class AppSettings {
     ),
     coachEnabled: json.optBool('coachEnabled') ?? false,
     coachBaseUrl: json.optString('coachBaseUrl') ?? 'http://127.0.0.1:8080',
+    coachToken: json.optString('coachToken') ?? '',
     theme: json.optString('theme') ?? 'system',
     onboardingComplete: json.optBool('onboardingComplete') ?? false,
     userName: json.optString('userName') ?? '',
@@ -40,6 +42,7 @@ class AppSettings {
   final DeloadPolicy deloadPolicy;
   final bool coachEnabled;
   final String coachBaseUrl;
+  final String coachToken;
   final String theme;
   final bool onboardingComplete;
   final String userName;
@@ -55,6 +58,7 @@ class AppSettings {
     'deloadPolicy': deloadPolicy.wire,
     'coachEnabled': coachEnabled,
     'coachBaseUrl': coachBaseUrl,
+    'coachToken': coachToken,
     'theme': theme,
     'onboardingComplete': onboardingComplete,
     'userName': userName,
@@ -68,6 +72,7 @@ class AppSettings {
     DeloadPolicy? deloadPolicy,
     bool? coachEnabled,
     String? coachBaseUrl,
+    String? coachToken,
     String? theme,
     bool? onboardingComplete,
     String? userName,
@@ -81,6 +86,7 @@ class AppSettings {
       deloadPolicy: deloadPolicy ?? this.deloadPolicy,
       coachEnabled: coachEnabled ?? this.coachEnabled,
       coachBaseUrl: coachBaseUrl ?? this.coachBaseUrl,
+      coachToken: coachToken ?? this.coachToken,
       theme: theme ?? this.theme,
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
       userName: userName ?? this.userName,

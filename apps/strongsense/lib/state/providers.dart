@@ -54,7 +54,10 @@ final coachPlanRepositoryProvider = Provider<CoachPlanRepository>(
 
 final coachApiClientProvider = Provider<CoachApiClient>((ref) {
   final settings = ref.watch(settingsControllerProvider);
-  return CoachApiClient(baseUrl: settings.coachBaseUrl);
+  return CoachApiClient(
+    baseUrl: settings.coachBaseUrl,
+    coachToken: settings.coachToken,
+  );
 });
 
 final coachServiceProvider = Provider<CoachService>(

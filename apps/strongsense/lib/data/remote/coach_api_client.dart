@@ -43,24 +43,31 @@ String normalizeCoachBaseUrl(String raw) {
 }
 
 class CoachApiClient {
-  CoachApiClient({required String baseUrl, http.Client? client})
-    : baseUrl = normalizeCoachBaseUrl(baseUrl),
-      _client = client ?? http.Client();
+  CoachApiClient({
+    required String baseUrl,
+    String coachToken = '',
+    http.Client? client,
+  }) : baseUrl = normalizeCoachBaseUrl(baseUrl),
+       _coachToken = coachToken,
+       _client = client ?? http.Client();
 
   final String baseUrl;
+  final String _coachToken;
   final http.Client _client;
 
   static const Duration planTimeout = Duration(seconds: 25);
   static const Duration healthTimeout = Duration(seconds: 6);
 
+  Map<String, String> baseHeaders() => <String, String>{
+    'accept': 'application/json',
+    if (_coachToken.isNotEmpty) 'Authorization': 'Bearer $_coachToken',
+  };
+
   Future<CoachHealth> health() async {
     final uri = Uri.parse('$baseUrl${CoachContract.healthPath}');
     try {
       final response = await _client
-          .get(
-            uri,
-            headers: const <String, String>{'accept': 'application/json'},
-          )
+          .get(uri, headers: baseHeaders())
           .timeout(healthTimeout);
       if (response.statusCode != 200) {
         throw _errorFromResponse(response);
@@ -84,20 +91,17 @@ class CoachApiClient {
   Future<CoachResponse> requestPlan(CoachRequest request) async {
     final uri = Uri.parse('$baseUrl${CoachContract.planPath}');
     final body = jsonEncode(request.toJson());
+    final headers = <String, String>{
+      'content-type': 'application/json; charset=utf-8',
+      ...baseHeaders(),
+    };
 
     http.Response? response;
     Object? lastError;
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
         response = await _client
-            .post(
-              uri,
-              headers: const <String, String>{
-                'content-type': 'application/json; charset=utf-8',
-                'accept': 'application/json',
-              },
-              body: body,
-            )
+            .post(uri, headers: headers, body: body)
             .timeout(planTimeout);
         break;
       } on TimeoutException catch (error) {
@@ -120,6 +124,10 @@ class CoachApiClient {
       );
     }
 
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      throw _authError(response.statusCode);
+    }
+
     if (response.statusCode != 200) {
       throw _errorFromResponse(response);
     }
@@ -134,6 +142,14 @@ class CoachApiClient {
       );
     }
   }
+
+  CoachApiException _authError(int statusCode) => CoachApiException(
+    code: 'auth_rejected',
+    message:
+        'The coach server rejected the access token. '
+        'Check your coach token or sign in again.',
+    statusCode: statusCode,
+  );
 
   CoachApiException _errorFromResponse(http.Response response) {
     var code = 'http_${response.statusCode}';
