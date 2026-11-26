@@ -910,3 +910,6 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
     return '${exercise.setTargets.length} × ${first.repsLabel}$load';
   }
 }
+
+this is not valid dart code
+
