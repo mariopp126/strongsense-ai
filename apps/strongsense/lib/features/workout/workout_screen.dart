@@ -254,6 +254,24 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
           sessionRpe: sessionRpe,
           notes: notesController.text.trim(),
         );
+    final completedSession = ref.read(sessionControllerProvider);
+    final currentProgram = ref.read(programControllerProvider);
+    final settings = ref.read(settingsControllerProvider);
+    final completedSessions =
+        (await ref.read(sessionRepositoryProvider).loadCompleted()).length;
+    if (completedSession != null) {
+      final nextProgram = ref
+          .read(programTemplateServiceProvider)
+          .advanceAfterSession(
+            session: completedSession,
+            program: currentProgram,
+            completedSessions: completedSessions,
+            increments: settings.increments,
+          );
+      if (nextProgram != null) {
+        await ref.read(programControllerProvider.notifier).save(nextProgram);
+      }
+    }
     ref.invalidate(historyProvider);
     ref.invalidate(latestCoachPlanProvider);
     if (mounted) {

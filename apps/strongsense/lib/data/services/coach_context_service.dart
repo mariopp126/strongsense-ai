@@ -45,7 +45,9 @@ class CoachContextService {
         .toList(growable: false);
 
     final records = RecordsCalculator.personalRecords(completed);
-    final blockWeek = (completed.length ~/ 3) + 1;
+    final dayCount = program.days.isEmpty ? 1 : program.days.length;
+    final blockWeek =
+        program.template?.week ?? ((completed.length ~/ dayCount) + 1);
 
     return CoachContext(
       date: DateTime(today.year, today.month, today.day),

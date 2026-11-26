@@ -59,4 +59,44 @@ void main() {
     expect(find.text('Import backup (JSON)'), findsOneWidget);
     expect(find.text('Delete all data'), findsOneWidget);
   });
+
+  testWidgets('settings opens the program template chooser', (tester) async {
+    final database = await AppDatabase.memory();
+    final container = ProviderContainer(
+      overrides: <Override>[
+        appDatabaseProvider.overrideWithValue(database),
+        initialSettingsProvider.overrideWithValue(
+          const AppSettings(userName: 'Test', onboardingComplete: true),
+        ),
+        initialProgramProvider.overrideWithValue(ProgramSeed.powerbuilding()),
+        initialActiveSessionProvider.overrideWithValue(null),
+      ],
+    );
+    addTearDown(() async {
+      container.dispose();
+      await database.close();
+    });
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: _app(const SettingsScreen()),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final templateTile = find.text('Program template');
+    await tester.scrollUntilVisible(
+      templateTile,
+      500.0,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(templateTile);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('5/3/1'), findsOneWidget);
+    expect(find.text('GZCLP'), findsOneWidget);
+    expect(find.text('Block Periodization'), findsOneWidget);
+  });
 }

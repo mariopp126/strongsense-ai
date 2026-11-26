@@ -218,6 +218,27 @@ unique coach-plan keys before any repository is touched. Import offers two modes
 CSV export flattens sessions to one row per set (UTF-8 BOM, CRLF, RFC 4180 escaping),
 which opens directly in Excel or Google Sheets.
 
+## Program template state
+
+A template program stores the training maxes and the current week:
+
+```json
+"template": {
+  "templateId": "5_3_1",
+  "week": 1,
+  "trainingMaxKg": {
+    "ex-squat": 75.0,
+    "ex-bench": 75.0,
+    "ex-deadlift": 80.0,
+    "ex-ohp": 40.0
+  }
+}
+```
+
+The days are materialized for `week`. After a completed session the app rebuilds the
+program for the next week/lift. A custom program has no `template` object and is never
+advanced automatically. Switching templates leaves the `sessions` store untouched, so
+history is preserved.
 
 ## Derived data (not stored)
 
@@ -225,5 +246,6 @@ which opens directly in Excel or Google Sheets.
   (`RecordsCalculator`).
 - **Weekly stats**: sessions and volume in the last 7 days.
 - **Next day**: the program day after the most recent completed session.
-- **Block week**: `(completed sessions ÷ 3) + 1`, used for the week-4 deload.
+- **Block week**: the template state's week when the program is a template, otherwise
+  `(completed sessions ÷ program days) + 1`; used for the week-4 deload.
 - **Next targets**: `ProgressionEngine.nextTopLoads` recomputed from the finished session.

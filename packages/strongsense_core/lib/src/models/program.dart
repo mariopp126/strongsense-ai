@@ -1,5 +1,6 @@
 import '../json/json_utils.dart';
 import 'enums.dart';
+import 'program_template.dart';
 
 /// A single prescribed set: reps (or rep range), load and optional RPE cap.
 class SetTarget {
@@ -194,6 +195,7 @@ class TrainingProgram {
     required this.name,
     required this.days,
     this.isDefault = false,
+    this.template,
   });
 
   factory TrainingProgram.fromJson(Map<String, dynamic> json) {
@@ -205,6 +207,9 @@ class TrainingProgram {
           .map(ProgramDay.fromJson)
           .toList(growable: false),
       isDefault: json.optBool('isDefault') ?? false,
+      template: json.optMap('template') == null
+          ? null
+          : ProgramTemplateState.fromJson(json.requireMap('template')),
     );
   }
 
@@ -212,6 +217,9 @@ class TrainingProgram {
   final String name;
   final List<ProgramDay> days;
   final bool isDefault;
+
+  /// Non-null when the program was built from a template and can advance.
+  final ProgramTemplateState? template;
 
   ProgramDay? dayById(String dayId) {
     for (final day in days) {
@@ -227,14 +235,21 @@ class TrainingProgram {
     'name': name,
     'isDefault': isDefault,
     'days': days.map((day) => day.toJson()).toList(growable: false),
+    if (template != null) 'template': template!.toJson(),
   };
 
-  TrainingProgram copyWith({String? name, List<ProgramDay>? days}) {
+  TrainingProgram copyWith({
+    String? name,
+    List<ProgramDay>? days,
+    ProgramTemplateState? template,
+    bool clearTemplate = false,
+  }) {
     return TrainingProgram(
       id: id,
       name: name ?? this.name,
       days: days ?? this.days,
       isDefault: isDefault,
+      template: clearTemplate ? null : (template ?? this.template),
     );
   }
 }

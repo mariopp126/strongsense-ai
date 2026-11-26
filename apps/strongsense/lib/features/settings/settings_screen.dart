@@ -262,11 +262,79 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  String _programTemplateLabel(TrainingProgram program) {
+    final l10n = AppLocalizations.of(context);
+    final template = program.template;
+    if (template == null) {
+      return program.name;
+    }
+    final definition = ProgramTemplates.byId(template.templateId);
+    final name = definition?.name ?? template.templateId;
+    return '$name · ${l10n.settingsProgramWeek(template.week)}';
+  }
+
+  Future<void> _chooseProgramTemplate() async {
+    final l10n = AppLocalizations.of(context);
+    final selected = await showModalBottomSheet<ProgramTemplateDefinition>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: <Widget>[
+            for (final template in ProgramTemplates.all)
+              ListTile(
+                title: Text(template.name),
+                subtitle: Text(l10n.programTemplateDescription(template.id)),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(sheetContext).pop(template),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.settingsProgramTemplateConfirmTitle),
+        content: Text(l10n.settingsProgramTemplateConfirmBody),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.settingsProgramTemplateConfirmAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    final next = ref
+        .read(programTemplateServiceProvider)
+        .select(
+          template: selected,
+          current: ref.read(programControllerProvider),
+          increments: ref.read(settingsControllerProvider).increments,
+        );
+    await ref.read(programControllerProvider.notifier).save(next);
+    if (mounted) {
+      _showMessage(l10n.settingsProgramTemplateApplied(selected.name));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final settings = ref.watch(settingsControllerProvider);
+    final program = ref.watch(programControllerProvider);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settingsTitle)),
@@ -539,15 +607,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             padding: EdgeInsets.zero,
             child: Material(
               type: MaterialType.transparency,
-              child: ListTile(
-                leading: const Icon(
-                  Icons.fitness_center_rounded,
-                  color: SsColors.emerald600,
-                ),
-                title: Text(l10n.programTitle),
-                subtitle: Text(l10n.onboardingProgramBody),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.go('/program'),
+              child: Column(
+                children: <Widget>[
+                  ListTile(
+                    leading: const Icon(
+                      Icons.fitness_center_rounded,
+                      color: SsColors.emerald600,
+                    ),
+                    title: Text(l10n.programTitle),
+                    subtitle: Text(l10n.onboardingProgramBody),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => context.go('/program'),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.dashboard_customize_outlined,
+                      color: SsColors.emerald600,
+                    ),
+                    title: Text(l10n.settingsProgramTemplate),
+                    subtitle: Text(_programTemplateLabel(program)),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: _chooseProgramTemplate,
+                  ),
+                ],
               ),
             ),
           ),
