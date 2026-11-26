@@ -23,6 +23,7 @@ import json
 import re
 import time
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 import httpx
@@ -105,6 +106,26 @@ _JSON_SCHEMA_RESPONSE_FORMAT: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 
 
+class LlmFailureCategory(StrEnum):
+    """Stable, non-secret classification of a provider failure.
+
+    The category is safe to log and can drive the user-facing message. The raw
+    provider detail stays in ``LlmProviderError.reason`` and is never returned to
+    the app.
+    """
+
+    AUTH = "auth_rejected"
+    MODEL_NOT_FOUND = "model_not_found"
+    RATE_LIMITED = "rate_limited"
+    QUOTA_EXCEEDED = "quota_exceeded"
+    TIMEOUT = "timeout"
+    NETWORK = "network"
+    TRUNCATED = "truncated"
+    INVALID_RESPONSE = "invalid_response"
+    INVALID_JSON = "invalid_json"
+    UNKNOWN = "provider_error"
+
+
 class LlmError(Exception):
     """Base class for every LLM related failure."""
 
@@ -126,10 +147,16 @@ class LlmProviderError(LlmError):
 
     code = "llm_unavailable"
 
-    def __init__(self, provider: str, reason: str) -> None:
+    def __init__(
+        self,
+        provider: str,
+        reason: str,
+        category: LlmFailureCategory = LlmFailureCategory.UNKNOWN,
+    ) -> None:
         super().__init__(f"{provider}: {reason}")
         self.provider = provider
         self.reason = reason
+        self.category = category
 
 
 class LlmUnavailableError(LlmError):
@@ -149,6 +176,10 @@ class LlmUnavailableError(LlmError):
     @property
     def last_model(self) -> str:
         return self.attempted[-1].model if self.attempted else ""
+
+    @property
+    def last_category(self) -> LlmFailureCategory:
+        return self.errors[-1].category if self.errors else LlmFailureCategory.UNKNOWN
 
 
 # ---------------------------------------------------------------------------
@@ -315,9 +346,17 @@ def _response_json(response: httpx.Response, provider: str) -> dict[str, Any]:
     try:
         payload = response.json()
     except ValueError as exc:
-        raise LlmProviderError(provider, "provider returned a non-JSON HTTP body") from exc
+        raise LlmProviderError(
+            provider,
+            "provider returned a non-JSON HTTP body",
+            LlmFailureCategory.INVALID_RESPONSE,
+        ) from exc
     if not isinstance(payload, dict):
-        raise LlmProviderError(provider, "provider returned an unexpected HTTP body")
+        raise LlmProviderError(
+            provider,
+            "provider returned an unexpected HTTP body",
+            LlmFailureCategory.INVALID_RESPONSE,
+        )
     return payload
 
 
@@ -368,6 +407,36 @@ def _is_terminal_quota(detail: str) -> bool:
     """True when a 429 is a quota exhaustion that a short retry cannot fix."""
     lowered = detail.lower()
     return any(marker in lowered for marker in TERMINAL_QUOTA_MARKERS)
+
+
+def _category_for_status(status: int, detail: str) -> LlmFailureCategory:
+    """Map an HTTP status (plus provider text) onto a stable failure category."""
+    lowered = detail.lower()
+    auth_markers = (
+        "api key not valid",
+        "invalid api key",
+        "incorrect api key",
+        "please pass a valid api key",
+        "valid api key",
+        "unauthorized",
+        "authentication",
+        "permission denied",
+    )
+    if status in (401, 403) or any(marker in lowered for marker in auth_markers):
+        return LlmFailureCategory.AUTH
+    model_missing = "model" in lowered and any(
+        marker in lowered
+        for marker in ("not found", "does not exist", "invalid model", "unknown model")
+    )
+    if status == 404 or model_missing:
+        return LlmFailureCategory.MODEL_NOT_FOUND
+    if status == 429:
+        if _is_terminal_quota(detail):
+            return LlmFailureCategory.QUOTA_EXCEEDED
+        return LlmFailureCategory.RATE_LIMITED
+    if status == 408:
+        return LlmFailureCategory.TIMEOUT
+    return LlmFailureCategory.UNKNOWN
 
 
 def _usage_from_openai(payload: dict[str, Any]) -> TokenUsage:
@@ -443,10 +512,15 @@ class _ProviderClient:
         would only delay the deterministic fallback.
         """
         last_reason = "request failed"
+        last_category = LlmFailureCategory.UNKNOWN
         for attempt in range(MAX_ATTEMPTS):
             remaining = deadline - time.monotonic()
             if remaining <= 0.05:
-                raise LlmProviderError(self.name, "request timeout budget exhausted")
+                raise LlmProviderError(
+                    self.name,
+                    "request timeout budget exhausted",
+                    LlmFailureCategory.TIMEOUT,
+                )
             try:
                 async with httpx.AsyncClient(
                     timeout=httpx.Timeout(remaining),
@@ -455,13 +529,15 @@ class _ProviderClient:
                     response = await client.post(url, headers=headers, json=payload)
             except httpx.TimeoutException as exc:
                 last_reason = "request timed out"
+                last_category = LlmFailureCategory.TIMEOUT
                 if not await self._wait_before_retry(attempt, deadline):
-                    raise LlmProviderError(self.name, last_reason) from exc
+                    raise LlmProviderError(self.name, last_reason, last_category) from exc
                 continue
             except httpx.TransportError as exc:
                 last_reason = "network error talking to provider"
+                last_category = LlmFailureCategory.NETWORK
                 if not await self._wait_before_retry(attempt, deadline):
-                    raise LlmProviderError(self.name, last_reason) from exc
+                    raise LlmProviderError(self.name, last_reason, last_category) from exc
                 continue
             if response.status_code == 429 or response.status_code >= 500:
                 detail = _provider_error_detail(response)
@@ -477,11 +553,12 @@ class _ProviderClient:
                 terminal = response.status_code == 429 and (
                     _is_terminal_quota(detail) or exceeds_budget
                 )
+                last_category = _category_for_status(response.status_code, detail)
                 if terminal or not await self._wait_before_retry(attempt, deadline):
-                    raise LlmProviderError(self.name, last_reason)
+                    raise LlmProviderError(self.name, last_reason, last_category)
                 continue
             return response
-        raise LlmProviderError(self.name, last_reason)
+        raise LlmProviderError(self.name, last_reason, last_category)
 
     async def _wait_before_retry(self, attempt: int, deadline: float) -> bool:
         if attempt + 1 >= MAX_ATTEMPTS:
@@ -521,7 +598,11 @@ class OpenAiCompatibleClient(_ProviderClient):
             reason = f"provider returned HTTP {response.status_code}"
             if detail:
                 reason = f"{reason}: {detail}"
-            raise LlmProviderError(self.name, reason)
+            raise LlmProviderError(
+                self.name,
+                reason,
+                _category_for_status(response.status_code, detail),
+            )
         data = _response_json(response, self.name)
         _raise_if_openai_truncated(data, self.name)
         return ChatResult(
@@ -556,7 +637,11 @@ class AnthropicClient(_ProviderClient):
             reason = f"provider returned HTTP {response.status_code}"
             if detail:
                 reason = f"{reason}: {detail}"
-            raise LlmProviderError(self.name, reason)
+            raise LlmProviderError(
+                self.name,
+                reason,
+                _category_for_status(response.status_code, detail),
+            )
         data = _response_json(response, self.name)
         _raise_if_anthropic_truncated(data, self.name)
         return ChatResult(text=_anthropic_text(data, self.name), usage=_usage_from_anthropic(data))
@@ -599,24 +684,36 @@ def _raise_if_openai_truncated(data: dict[str, Any], provider: str) -> None:
         return
     first = choices[0]
     if isinstance(first, dict) and first.get("finish_reason") == "length":
-        raise LlmProviderError(provider, TRUNCATION_REASON)
+        raise LlmProviderError(provider, TRUNCATION_REASON, LlmFailureCategory.TRUNCATED)
 
 
 def _raise_if_anthropic_truncated(data: dict[str, Any], provider: str) -> None:
     if data.get("stop_reason") == "max_tokens":
-        raise LlmProviderError(provider, TRUNCATION_REASON)
+        raise LlmProviderError(provider, TRUNCATION_REASON, LlmFailureCategory.TRUNCATED)
 
 
 def _openai_message_text(data: dict[str, Any], provider: str) -> str:
     choices = data.get("choices")
     if not isinstance(choices, list) or not choices:
-        raise LlmProviderError(provider, "provider response contained no choices")
+        raise LlmProviderError(
+            provider,
+            "provider response contained no choices",
+            LlmFailureCategory.INVALID_RESPONSE,
+        )
     first = choices[0]
     if not isinstance(first, dict):
-        raise LlmProviderError(provider, "provider response contained an unexpected choice")
+        raise LlmProviderError(
+            provider,
+            "provider response contained an unexpected choice",
+            LlmFailureCategory.INVALID_RESPONSE,
+        )
     message = first.get("message")
     if not isinstance(message, dict):
-        raise LlmProviderError(provider, "provider response contained no assistant message")
+        raise LlmProviderError(
+            provider,
+            "provider response contained no assistant message",
+            LlmFailureCategory.INVALID_RESPONSE,
+        )
     content = message.get("content")
     if isinstance(content, str):
         return content
@@ -628,13 +725,21 @@ def _openai_message_text(data: dict[str, Any], provider: str) -> str:
         ]
         if parts:
             return "".join(parts)
-    raise LlmProviderError(provider, "provider response contained no text content")
+    raise LlmProviderError(
+        provider,
+        "provider response contained no text content",
+        LlmFailureCategory.INVALID_RESPONSE,
+    )
 
 
 def _anthropic_text(data: dict[str, Any], provider: str) -> str:
     content = data.get("content")
     if not isinstance(content, list):
-        raise LlmProviderError(provider, "provider response contained no content blocks")
+        raise LlmProviderError(
+            provider,
+            "provider response contained no content blocks",
+            LlmFailureCategory.INVALID_RESPONSE,
+        )
     parts = [
         str(block.get("text"))
         for block in content
@@ -643,7 +748,11 @@ def _anthropic_text(data: dict[str, Any], provider: str) -> str:
         and isinstance(block.get("text"), str)
     ]
     if not parts:
-        raise LlmProviderError(provider, "provider response contained no text content")
+        raise LlmProviderError(
+            provider,
+            "provider response contained no text content",
+            LlmFailureCategory.INVALID_RESPONSE,
+        )
     return "\n".join(parts)
 
 
@@ -690,6 +799,7 @@ class LlmClient:
                     LlmProviderError(
                         profile.name,
                         "overall latency budget exhausted before this provider was tried",
+                        LlmFailureCategory.TIMEOUT,
                     )
                 )
                 continue
@@ -726,6 +836,7 @@ class LlmClient:
                 raise LlmProviderError(
                     profile.name,
                     f"model returned an invalid plan ({first_error})",
+                    LlmFailureCategory.INVALID_JSON,
                 ) from first_error
             repair_messages = _repair_messages(messages, chat.text, str(first_error))
             try:
@@ -734,6 +845,7 @@ class LlmClient:
                 raise LlmProviderError(
                     profile.name,
                     f"model returned an invalid plan and the repair call failed ({exc.reason})",
+                    exc.category,
                 ) from exc
             try:
                 plan = parse_model_plan(repaired.text)
@@ -741,6 +853,7 @@ class LlmClient:
                 raise LlmProviderError(
                     profile.name,
                     f"model returned an invalid plan after one repair retry ({second_error})",
+                    LlmFailureCategory.INVALID_JSON,
                 ) from second_error
             usage = chat.usage.merged(repaired.usage)
             return plan, usage
@@ -782,3 +895,143 @@ def _repair_messages(
             ),
         },
     ]
+
+
+# ---------------------------------------------------------------------------
+# Provider probes (scripts/check_llm.py and diagnostics)
+# ---------------------------------------------------------------------------
+
+PROBE_MESSAGES: list[dict[str, str]] = [
+    {"role": "user", "content": "Reply with the single word OK."}
+]
+
+
+@dataclass(frozen=True)
+class ProviderProbeResult:
+    """Outcome of one provider probe (never contains a key)."""
+
+    name: str
+    model: str
+    ok: bool
+    category: str
+    detail: str
+    latency_ms: int
+
+
+async def probe_profile(
+    profile: ProviderProfile,
+    *,
+    timeout: float = 10.0,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> ProviderProbeResult:
+    """Send a tiny request to one provider and classify the outcome.
+
+    This deliberately avoids the structured plan schema: it only proves that the
+    endpoint is reachable and that the key/model pair is accepted. The returned
+    detail is diagnostic text, never a secret.
+    """
+    started = time.monotonic()
+    remaining = max(0.1, timeout)
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(remaining),
+            transport=transport,
+        ) as client:
+            if profile.name == PROVIDER_ANTHROPIC:
+                headers = {
+                    "Content-Type": "application/json",
+                    "anthropic-version": ANTHROPIC_VERSION,
+                }
+                api_key = profile.api_key.get_secret_value() if profile.api_key else ""
+                if api_key.strip():
+                    headers["x-api-key"] = api_key.strip()
+                response = await client.post(
+                    _anthropic_messages_url(profile.base_url),
+                    headers=headers,
+                    json={
+                        "model": profile.model,
+                        "max_tokens": 8,
+                        "temperature": 0,
+                        "messages": PROBE_MESSAGES,
+                    },
+                )
+            else:
+                headers = {
+                    "Content-Type": "application/json",
+                    **_authorization_headers(profile.api_key),
+                }
+                response = await client.post(
+                    _openai_chat_url(profile.base_url),
+                    headers=headers,
+                    json={
+                        "model": profile.model,
+                        "messages": PROBE_MESSAGES,
+                        "temperature": 0,
+                        "max_tokens": 8,
+                    },
+                )
+    except httpx.TimeoutException:
+        return ProviderProbeResult(
+            name=profile.name,
+            model=profile.model,
+            ok=False,
+            category=LlmFailureCategory.TIMEOUT.value,
+            detail="request timed out",
+            latency_ms=_elapsed_ms(started),
+        )
+    except httpx.TransportError:
+        return ProviderProbeResult(
+            name=profile.name,
+            model=profile.model,
+            ok=False,
+            category=LlmFailureCategory.NETWORK.value,
+            detail="network error talking to provider",
+            latency_ms=_elapsed_ms(started),
+        )
+
+    latency_ms = _elapsed_ms(started)
+    if response.status_code >= 400:
+        detail = _provider_error_detail(response)
+        reason = f"provider returned HTTP {response.status_code}"
+        if detail:
+            reason = f"{reason}: {detail}"
+        category = _category_for_status(response.status_code, detail)
+        return ProviderProbeResult(
+            name=profile.name,
+            model=profile.model,
+            ok=False,
+            category=category.value,
+            detail=reason,
+            latency_ms=latency_ms,
+        )
+
+    try:
+        data = _response_json(response, profile.name)
+        if profile.name == PROVIDER_ANTHROPIC:
+            text = _anthropic_text(data, profile.name)
+        else:
+            _raise_if_openai_truncated(data, profile.name)
+            text = _openai_message_text(data, profile.name)
+    except LlmProviderError as exc:
+        return ProviderProbeResult(
+            name=profile.name,
+            model=profile.model,
+            ok=False,
+            category=exc.category.value,
+            detail=exc.reason,
+            latency_ms=latency_ms,
+        )
+
+    return ProviderProbeResult(
+        name=profile.name,
+        model=profile.model,
+        ok=True,
+        category="ok",
+        detail=" ".join(text.split())[:80],
+        latency_ms=latency_ms,
+    )
+
+
+def _elapsed_ms(started: float) -> int:
+    return int((time.monotonic() - started) * 1000)
+

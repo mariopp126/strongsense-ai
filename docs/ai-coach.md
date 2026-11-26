@@ -110,8 +110,8 @@ is loaded by **both** the Dart and Python test suites to prove the two clamps ag
 3. One JSON repair retry if the model returned text that is not valid JSON.
 4. If a baseline plan was supplied, return it as `source: "rules_fallback"` with
    `meta.clamped` / `droppedAdjustments`. The provider failure reason is written to the
-   request log as `llmError` (never to the app), so quota/401/timeout problems are not
-   silent.
+   request log as `llmError` and its stable category as `llmErrorCategory` (never to the
+   app), so quota/401/timeout problems are not silent.
 5. Otherwise `503 llm_unavailable`.
 
 A 429 caused by an exhausted quota (or a `Retry-After` longer than the remaining
@@ -144,6 +144,39 @@ recommended Gemini models.
 
 JSON schema mode is attempted first (`response_format: json_schema`); if the provider
 rejects it, the adapter falls back to `json_object` plus a strict instruction.
+
+### Provider diagnostics
+
+Probe the configured key/model without starting the API:
+
+```bash
+cd server/coach_api          # install requirements-dev.txt first
+python ../../scripts/check_llm.py
+python ../../scripts/check_llm.py --json
+```
+
+The script sends one tiny request per provider (no JSON schema) and reports a stable
+category: `auth_rejected`, `model_not_found`, `rate_limited`, `quota_exceeded`,
+`timeout`, `network`, `truncated`, `invalid_response`, `invalid_json`, or
+`provider_error`. It never prints the API key. Exit codes: `0` every provider answered,
+`1` a provider failed, `2` none configured.
+
+The service logs the same category as `llmErrorCategory` and the provider detail as
+`llmError`. The app only receives a safe message such as "The AI provider rejected the
+configured API key." — never the key or the raw provider body.
+
+`scripts/smoke_coach.py` fails when the server returns `source: rules_fallback`, so a
+broken key/model cannot pass silently. Pass `--allow-fallback` when you intentionally
+test the offline path.
+
+Known provider quirks:
+
+- **Gemini (OpenAI-compatible):** use a Gemini API key, not an OAuth token, and prefer
+  the `*-flash-lite` model for this JSON task. Full thinking models consume part of
+  `LLM_MAX_TOKENS` on hidden reasoning.
+- **Groq:** use the exact model id from the Groq console (for example
+  `llama-3.3-70b-versatile`); retired ids return `model_not_found`.
+- **DeepSeek:** use a DeepSeek API key; an invalid key returns `auth_rejected`.
 
 ## Key handling
 

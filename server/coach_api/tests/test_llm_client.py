@@ -11,18 +11,22 @@ import pytest
 from app.config import Settings
 from app.llm import (
     LlmClient,
+    LlmFailureCategory,
     LlmNotConfiguredError,
     LlmUnavailableError,
     PlanParseError,
     PlanSchemaError,
+    ProviderProfile,
     TokenUsage,
     _anthropic_messages_url,
     _openai_chat_url,
     extract_json_payload,
     parse_model_plan,
+    probe_profile,
     resolve_profiles,
 )
 from app.schemas import CoachRequest
+from pydantic import SecretStr
 
 from conftest import (
     FALLBACK_BASE_URL,
@@ -638,3 +642,159 @@ def test_resolve_profiles_skips_misconfigured(
 def test_primary_base_url_constant_matches_fixture() -> None:
     assert PRIMARY_BASE_URL.endswith("/v1")
     assert FALLBACK_BASE_URL.endswith("/v1")
+
+
+# ---------------------------------------------------------------------------
+# Failure categories and provider probes
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("status", "payload", "expected"),
+    [
+        (401, {"error": {"message": "bad key"}}, LlmFailureCategory.AUTH),
+        (403, {"error": {"message": "forbidden"}}, LlmFailureCategory.AUTH),
+        (
+            400,
+            {"error": {"message": "Please pass a valid API key"}},
+            LlmFailureCategory.AUTH,
+        ),
+        (404, {"error": {"message": "model not found"}}, LlmFailureCategory.MODEL_NOT_FOUND),
+        (429, {"error": {"message": "slow down"}}, LlmFailureCategory.RATE_LIMITED),
+        (
+            429,
+            {"error": {"message": "quota exceeded for metric: per day limit"}},
+            LlmFailureCategory.QUOTA_EXCEEDED,
+        ),
+        (500, {"error": {"message": "boom"}}, LlmFailureCategory.UNKNOWN),
+    ],
+)
+async def test_openai_failure_category(
+    configured: Settings,
+    request_obj: CoachRequest,
+    openai_route: Any,
+    status: int,
+    payload: dict[str, Any],
+    expected: LlmFailureCategory,
+) -> None:
+    openai_route.mock(return_value=httpx.Response(status, json=payload))
+    with pytest.raises(LlmUnavailableError) as exc_info:
+        await LlmClient(configured, backoff_seconds=0.0).generate(request_obj)
+    assert exc_info.value.errors[0].category == expected
+    assert exc_info.value.last_category == expected
+
+
+async def test_openai_timeout_category(
+    configured: Settings,
+    request_obj: CoachRequest,
+    openai_route: Any,
+) -> None:
+    openai_route.mock(side_effect=httpx.ReadTimeout("timed out"))
+    with pytest.raises(LlmUnavailableError) as exc_info:
+        await LlmClient(configured, backoff_seconds=0.0).generate(request_obj)
+    assert exc_info.value.errors[0].category == LlmFailureCategory.TIMEOUT
+
+
+async def test_openai_network_category(
+    configured: Settings,
+    request_obj: CoachRequest,
+    openai_route: Any,
+) -> None:
+    openai_route.mock(side_effect=httpx.ConnectError("no route"))
+    with pytest.raises(LlmUnavailableError) as exc_info:
+        await LlmClient(configured, backoff_seconds=0.0).generate(request_obj)
+    assert exc_info.value.errors[0].category == LlmFailureCategory.NETWORK
+
+
+async def test_openai_truncated_category(
+    configured: Settings,
+    request_obj: CoachRequest,
+    openai_route: Any,
+) -> None:
+    openai_route.mock(
+        return_value=openai_response('{"summary": "cut off', finish_reason="length")
+    )
+    with pytest.raises(LlmUnavailableError) as exc_info:
+        await LlmClient(configured, backoff_seconds=0.0).generate(request_obj)
+    assert exc_info.value.errors[0].category == LlmFailureCategory.TRUNCATED
+
+
+async def test_openai_invalid_json_category(
+    configured: Settings,
+    request_obj: CoachRequest,
+    openai_route: Any,
+) -> None:
+    openai_route.side_effect = [
+        openai_response("not json"),
+        openai_response("still not json"),
+    ]
+    with pytest.raises(LlmUnavailableError) as exc_info:
+        await LlmClient(configured, backoff_seconds=0.0).generate(request_obj)
+    assert exc_info.value.errors[0].category == LlmFailureCategory.INVALID_JSON
+
+
+def _probe_profile(base_url: str = "https://probe.test/v1") -> ProviderProfile:
+    return ProviderProfile(
+        name="openai_compatible",
+        base_url=base_url,
+        model="probe-model",
+        api_key=SecretStr("sk-probe-secret"),
+    )
+
+
+async def test_probe_openai_success(respx_router: Any) -> None:
+    route = respx_router.post("https://probe.test/v1/chat/completions").mock(
+        return_value=openai_response("OK")
+    )
+
+    result = await probe_profile(_probe_profile(), timeout=5.0)
+
+    assert result.ok is True
+    assert result.category == "ok"
+    assert result.model == "probe-model"
+    body = json.loads(route.calls.last.request.content)
+    assert body["max_tokens"] == 8
+    assert body["temperature"] == 0
+    assert "response_format" not in body
+    assert route.calls.last.request.headers["authorization"] == "Bearer sk-probe-secret"
+
+
+async def test_probe_openai_auth_failure(respx_router: Any) -> None:
+    respx_router.post("https://probe.test/v1/chat/completions").mock(
+        return_value=httpx.Response(401, json={"error": {"message": "bad key"}})
+    )
+    result = await probe_profile(_probe_profile(), timeout=5.0)
+    assert result.ok is False
+    assert result.category == "auth_rejected"
+    assert "sk-probe-secret" not in result.detail
+
+
+async def test_probe_openai_timeout(respx_router: Any) -> None:
+    respx_router.post("https://probe.test/v1/chat/completions").mock(
+        side_effect=httpx.ReadTimeout("timed out")
+    )
+    result = await probe_profile(_probe_profile(), timeout=1.0)
+    assert result.ok is False
+    assert result.category == "timeout"
+
+
+async def test_probe_anthropic_success(respx_router: Any) -> None:
+    route = respx_router.post("https://anthro.test/v1/messages").mock(
+        return_value=anthropic_response("OK")
+    )
+    profile = ProviderProfile(
+        name="anthropic",
+        base_url="https://anthro.test",
+        model="claude-test",
+        api_key=SecretStr("sk-ant-probe"),
+    )
+
+    result = await probe_profile(profile, timeout=5.0)
+
+    assert result.ok is True
+    assert route.calls.last.request.headers["x-api-key"] == "sk-ant-probe"
+    assert route.calls.last.request.headers["anthropic-version"] == "2023-06-01"
+    body = json.loads(route.calls.last.request.content)
+    assert body["max_tokens"] == 8
+    assert "response_format" not in body
+

@@ -105,7 +105,7 @@ Design details are in [`docs/architecture.md`](docs/architecture.md) and the ADR
 ├── packages/strongsense_core/ Pure-Dart domain: models, engines, contract codec
 ├── server/coach_api/          Python 3.12 FastAPI coach proxy
 ├── docs/                      Architecture, data model, AI/safety, design system, contract, ADRs
-├── scripts/                   dev.ps1, set_keys.ps1, smoke_coach.py, generate_icons.py
+├── scripts/                   dev.ps1, set_keys.ps1, smoke_coach.py, check_llm.py, generate_icons.py
 └── .github/workflows/ci.yml   Core, app, Android, server and secrets-guard jobs
 ```
 
@@ -115,7 +115,7 @@ Design details are in [`docs/architecture.md`](docs/architecture.md) and the ADR
 
 | Tool | Version |
 |---|---|
-| Flutter | 3.41+ (Dart 3.11+) |
+| Flutter | 3.50+ (Dart 3.14+) |
 | Python | 3.12+ |
 | Android SDK / Xcode | only for mobile builds (iOS builds need macOS) |
 
@@ -152,6 +152,19 @@ Then in the app: **Settings → AI coach → Enable**, set the URL
 ```powershell
 python scripts/smoke_coach.py --base-url http://127.0.0.1:8080
 ```
+
+The smoke test fails if the server returns `source: rules_fallback` (the provider
+failed); pass `--allow-fallback` only when you intentionally test the offline path.
+
+Probe the configured provider key/model without starting the API:
+
+```powershell
+python scripts/check_llm.py
+python scripts/check_llm.py --json
+```
+
+`check_llm.py` reports `auth_rejected`, `model_not_found`, `quota_exceeded`,
+`timeout`, `network` and the other failure categories, and never prints the key.
 
 ## AI coach configuration
 

@@ -74,6 +74,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Set forceRules=true so the server returns the baseline rules plan",
     )
     parser.add_argument(
+        "--allow-fallback",
+        action="store_true",
+        help=(
+            "Accept source=rules_fallback (the provider failed). By default the smoke "
+            "test fails so a broken provider key/model is visible."
+        ),
+    )
+    parser.add_argument(
         "--print-response",
         action="store_true",
         help="Print the full JSON response body (pretty printed)",
@@ -237,6 +245,15 @@ def main(argv: list[str] | None = None) -> int:
     if not payload.get("forceRules") and plan.get("source") not in {"llm", "rules_fallback"}:
         print(f"FAIL: unexpected source {plan.get('source')!r}")
         return 1
+    if response.get("source") == "rules_fallback" and not args.allow_fallback:
+        print(
+            "FAIL: the server returned the deterministic rules fallback, so the AI path "
+            "was not used. Check the server's `llmError` log or run:\n"
+            "      python scripts/check_llm.py"
+        )
+        return 1
+    if response.get("source") == "rules_fallback":
+        print("WARN: source=rules_fallback accepted because --allow-fallback was set")
 
     print("PASS: coach plan response is contract-shaped")
     return 0
