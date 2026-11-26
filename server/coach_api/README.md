@@ -157,9 +157,22 @@ The primary is tried first; the fallback is tried when it fails. The whole call
 (primary + fallback + one repair retry each) is bound by `LLM_TIMEOUT_SECONDS` (20 s).
 
 When every provider fails, the request log gets an `llmError` field with the last
-provider reason (HTTP status, timeout, quota or truncation). A 429 from an exhausted
-quota is not retried; the service logs it and returns the deterministic
-`rules_fallback` plan instead of delaying the response.
+provider reason (HTTP status, timeout, quota or truncation) and an `llmErrorCategory`
+(`auth_rejected`, `model_not_found`, `rate_limited`, `quota_exceeded`, `timeout`,
+`network`, `truncated`, `invalid_response`, `invalid_json`, `provider_error`). A 429
+from an exhausted quota is not retried; the service logs it and returns the
+deterministic `rules_fallback` plan instead of delaying the response.
+
+Probe the configured key/model directly (no server needed):
+
+```powershell
+cd server\coach_api
+python ..\..\scripts\check_llm.py
+python ..\..\scripts\check_llm.py --json
+```
+
+The probe never prints the key. Exit codes: `0` every provider answered, `1` a
+provider failed, `2` none configured.
 
 ## Configuration reference
 
@@ -236,7 +249,12 @@ Live smoke test (server running):
 python scripts\smoke_coach.py --base-url http://127.0.0.1:8080
 python scripts\smoke_coach.py --health-only
 python scripts\smoke_coach.py --force-rules
+python scripts\smoke_coach.py --allow-fallback   # accept the offline path intentionally
 ```
+
+By default the smoke test fails when the server returns `source: rules_fallback`, so
+a rejected key or a wrong model id cannot pass silently. Use `--allow-fallback` when
+you deliberately want to exercise the offline path.
 
 ## Project layout
 

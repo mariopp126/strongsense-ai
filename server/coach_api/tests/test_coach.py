@@ -258,6 +258,59 @@ def test_provider_failure_without_baseline_returns_503(
     assert body["detail"]["message"]
 
 
+@pytest.mark.parametrize(
+    ("status", "body", "expected_message"),
+    [
+        (401, {"error": {"message": "bad key"}}, "rejected the configured API key"),
+        (
+            400,
+            {"error": {"message": "Please pass a valid API key"}},
+            "rejected the configured API key",
+        ),
+        (404, {"error": {"message": "model not found"}}, "model was not found"),
+        (429, {"error": {"message": "per day quota exceeded"}}, "quota is exhausted"),
+    ],
+)
+def test_no_baseline_failure_returns_safe_category_message(
+    llm_client: TestClient,
+    plan_payload: dict[str, Any],
+    openai_route: Any,
+    status: int,
+    body: dict[str, Any],
+    expected_message: str,
+) -> None:
+    payload = json.loads(json.dumps(plan_payload))
+    payload.pop("baselinePlan")
+    openai_route.mock(return_value=httpx.Response(status, json=body))
+    response = post_plan(llm_client, payload)
+    assert response.status_code == 503
+    detail = response.json()["detail"]
+    assert detail["code"] == "llm_unavailable"
+    assert expected_message in detail["message"]
+    assert "bad key" not in detail["message"]
+
+
+def test_fallback_logs_llm_error_category(
+    llm_client: TestClient,
+    plan_payload: dict[str, Any],
+    openai_route: Any,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    openai_route.mock(
+        return_value=httpx.Response(
+            429,
+            json={"error": {"message": "Quota exceeded for per day limit."}},
+        )
+    )
+    with caplog.at_level("INFO", logger="strongsense.coach"):
+        response = post_plan(llm_client, plan_payload)
+    assert response.status_code == 200
+    assert response.json()["source"] == "rules_fallback"
+    events = [record for record in caplog.records if record.getMessage() == "request.completed"]
+    assert events
+    assert events[-1].event_data["llmErrorCategory"] == "quota_exceeded"
+
+
 # ---------------------------------------------------------------------------
 # Fallback provider
 # ---------------------------------------------------------------------------

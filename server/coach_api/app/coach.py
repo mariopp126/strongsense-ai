@@ -14,6 +14,7 @@ from typing import Any
 from app.config import Settings
 from app.llm import (
     LlmClient,
+    LlmFailureCategory,
     LlmNotConfiguredError,
     LlmUnavailableError,
 )
@@ -30,6 +31,20 @@ from app.schemas import (
 
 LLM_NOT_CONFIGURED_MESSAGE = "The AI coach is not configured on this server."
 LLM_UNAVAILABLE_MESSAGE = "The AI coach is temporarily unavailable."
+
+#: Safe, user-facing messages per failure category. Provider details and keys are
+#: never included; the full reason stays in the request log as ``llmError``.
+LLM_FAILURE_MESSAGES: dict[LlmFailureCategory, str] = {
+    LlmFailureCategory.AUTH: "The AI provider rejected the configured API key.",
+    LlmFailureCategory.MODEL_NOT_FOUND: "The configured AI model was not found.",
+    LlmFailureCategory.RATE_LIMITED: "The AI provider is rate limiting requests.",
+    LlmFailureCategory.QUOTA_EXCEEDED: "The AI provider quota is exhausted.",
+    LlmFailureCategory.TIMEOUT: "The AI provider timed out.",
+    LlmFailureCategory.NETWORK: "The AI provider could not be reached.",
+    LlmFailureCategory.TRUNCATED: "The AI provider returned a truncated response.",
+    LlmFailureCategory.INVALID_RESPONSE: "The AI provider returned an invalid response.",
+    LlmFailureCategory.INVALID_JSON: "The AI provider returned an invalid plan.",
+}
 
 
 class CoachError(Exception):
@@ -102,12 +117,13 @@ async def generate_plan(
             model=model,
             source=PlanSource.RULES_FALLBACK,
             llmError=_error_reason(exc),
+            llmErrorCategory=exc.last_category.value,
         )
         if baseline is None:
             raise CoachError(
                 status_code=503,
                 code="llm_unavailable",
-                message=LLM_UNAVAILABLE_MESSAGE,
+                message=_failure_message(exc),
             ) from exc
         plan = _with_source(baseline, PlanSource.RULES_FALLBACK)
         return CoachResponse(
@@ -177,6 +193,11 @@ def _error_reason(error: LlmUnavailableError) -> str:
         return "no provider attempt succeeded"
     reason = " ".join(str(error.errors[-1].reason).split())
     return reason[:240]
+
+
+def _failure_message(error: LlmUnavailableError) -> str:
+    """Return the safe 503 message for the last provider failure category."""
+    return LLM_FAILURE_MESSAGES.get(error.last_category, LLM_UNAVAILABLE_MESSAGE)
 
 
 __all__ = ["CoachError", "LLM_NOT_CONFIGURED_MESSAGE", "LLM_UNAVAILABLE_MESSAGE", "generate_plan"]
