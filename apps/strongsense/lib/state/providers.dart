@@ -7,6 +7,8 @@ import '../data/repositories/coach_plan_repository.dart';
 import '../data/repositories/program_repository.dart';
 import '../data/repositories/session_repository.dart';
 import '../data/repositories/settings_repository.dart';
+import '../data/services/backup_file_service.dart';
+import '../data/services/backup_service.dart';
 import '../data/services/coach_context_service.dart';
 import '../data/services/coach_service.dart';
 import 'program_controller.dart';
@@ -73,6 +75,19 @@ final coachContextServiceProvider = Provider<CoachContextService>(
     program: ref.watch(programControllerProvider),
     settings: ref.watch(settingsControllerProvider),
   ),
+);
+
+final backupServiceProvider = Provider<BackupService>(
+  (ref) => BackupService(
+    settingsRepository: ref.watch(settingsRepositoryProvider),
+    programRepository: ref.watch(programRepositoryProvider),
+    sessionRepository: ref.watch(sessionRepositoryProvider),
+    coachPlanRepository: ref.watch(coachPlanRepositoryProvider),
+  ),
+);
+
+final backupFileServiceProvider = Provider<BackupFileService>(
+  (ref) => const BackupFileService(),
 );
 
 // ---------------------------------------------------------------------------

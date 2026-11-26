@@ -11,6 +11,19 @@ class SavedCoachPlan {
   final DateTime generatedAt;
 }
 
+/// A persisted coach plan together with its storage key (session id or `latest`).
+class SavedCoachPlanRecord {
+  const SavedCoachPlanRecord({
+    required this.key,
+    required this.plan,
+    required this.generatedAt,
+  });
+
+  final String key;
+  final CoachPlan plan;
+  final DateTime generatedAt;
+}
+
 class CoachPlanRepository {
   CoachPlanRepository(this._database);
 
@@ -28,9 +41,39 @@ class CoachPlanRepository {
   /// Persist [plan] as the latest plan shown in the Coach tab and Home teaser.
   Future<void> saveLatest(CoachPlan plan) => _put(latestKey, plan);
 
-  Future<void> _put(String key, CoachPlan plan) =>
+  /// Persist a plan with an explicit key and timestamp (used by backup import).
+  Future<void> saveRecord(SavedCoachPlanRecord record) =>
+      _put(record.key, record.plan, generatedAt: record.generatedAt);
+
+  Future<List<SavedCoachPlanRecord>> loadAll() async {
+    final records = await _store.find(
+      _database.db,
+      finder: Finder(sortOrders: <SortOrder>[SortOrder('generatedAt', false)]),
+    );
+    final result = <SavedCoachPlanRecord>[];
+    for (final record in records) {
+      final plan = _decode(record.value);
+      if (plan == null) {
+        continue;
+      }
+      result.add(
+        SavedCoachPlanRecord(
+          key: record.key,
+          plan: plan,
+          generatedAt:
+              DateTime.tryParse('${record.value['generatedAt']}')?.toLocal() ??
+              DateTime.now(),
+        ),
+      );
+    }
+    return result;
+  }
+
+  Future<void> _put(String key, CoachPlan plan, {DateTime? generatedAt}) =>
       _store.record(key).put(_database.db, <String, Object?>{
-        'generatedAt': DateTime.now().toUtc().toIso8601String(),
+        'generatedAt': (generatedAt ?? DateTime.now())
+            .toUtc()
+            .toIso8601String(),
         'plan': plan.toJson(),
       });
 

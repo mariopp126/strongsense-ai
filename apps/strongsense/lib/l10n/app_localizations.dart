@@ -310,6 +310,36 @@ class AppLocalizations {
   String get settingsResetConfirm => _es
       ? '¿Borrar todas las sesiones, planes y ajustes?'
       : 'Delete all sessions, plans and settings?';
+  String get settingsExportBackup =>
+      _es ? 'Exportar copia (JSON)' : 'Export backup (JSON)';
+  String get settingsExportBackupBody => _es
+      ? 'Ajustes, programa, sesiones y planes de coaching.'
+      : 'Settings, program, sessions and coach plans.';
+  String get settingsExportCsv =>
+      _es ? 'Exportar sesiones (CSV)' : 'Export sessions (CSV)';
+  String get settingsExportCsvBody => _es
+      ? 'Una fila por serie, para Excel o Sheets.'
+      : 'One row per set, for Excel or Sheets.';
+  String get settingsImportBackup =>
+      _es ? 'Importar copia (JSON)' : 'Import backup (JSON)';
+  String get settingsImportBackupBody => _es
+      ? 'Combinar o reemplazar los datos locales.'
+      : 'Merge or replace the local data.';
+  String get settingsBackupExported => _es ? 'Copia lista.' : 'Backup ready.';
+  String get settingsBackupExportFailed =>
+      _es ? 'No se pudieron exportar los datos' : 'Could not export the data';
+  String get settingsImportTitle => _es ? 'Importar copia' : 'Import backup';
+  String get settingsImportBody => _es
+      ? 'Combinar conserva tus ajustes y programa actuales y añade o actualiza sesiones y planes. Reemplazar usa la copia para todo.'
+      : 'Merge keeps your current settings and program and adds or updates sessions and coach plans. Replace uses the backup for everything.';
+  String get settingsImportMerge => _es ? 'Combinar' : 'Merge';
+  String get settingsImportReplace => _es ? 'Reemplazar' : 'Replace';
+  String settingsImportDone(int sessions, int plans) => _es
+      ? 'Importadas $sessions sesiones y $plans planes de coaching.'
+      : 'Imported $sessions sessions and $plans coach plans.';
+  String get settingsImportFailed =>
+      _es ? 'No se pudo importar la copia' : 'Could not import the backup';
+  String get settingsBackupWorking => _es ? 'Procesando…' : 'Working…';
   String get settingsAbout => _es ? 'Acerca de' : 'About';
   String get settingsVersion => _es ? 'Versión' : 'Version';
   String get settingsDisclaimer => _es ? 'Aviso médico' : 'Medical disclaimer';

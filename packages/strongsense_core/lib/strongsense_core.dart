@@ -4,6 +4,9 @@
 /// `dart test`. The JSON shapes mirror `docs/contract/contract.md` v1.
 library;
 
+export 'src/backup/backup_document.dart';
+export 'src/backup/backup_merger.dart';
+export 'src/backup/session_csv_exporter.dart';
 export 'src/contract/coach_contract.dart';
 export 'src/engines/autoregulation_engine.dart';
 export 'src/engines/e1rm.dart';

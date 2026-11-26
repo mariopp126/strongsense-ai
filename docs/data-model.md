@@ -191,6 +191,34 @@ generated (so the Coach tab and Home teaser can show it before the workout start
 `meta.schemaVersion` is reserved for migrations; v0.1 is version 1. Repository reads
 are defensive: a corrupt record is skipped instead of crashing the history.
 
+## Backup format
+
+Settings → Data exports a versioned JSON snapshot:
+
+```json
+{
+  "format": "strongsense.backup",
+  "schemaVersion": 1,
+  "exportedAt": "2026-11-26T18:04:52.598Z",
+  "settings": { "...AppSettings..." },
+  "program": { "...TrainingProgram..." },
+  "sessions": [ { "...Session..." } ],
+  "coachPlans": [ { "key": "latest", "generatedAt": "...", "plan": { "...CoachPlan..." } } ]
+}
+```
+
+`BackupDocument.decode` validates `format`, `schemaVersion`, unique session ids and
+unique coach-plan keys before any repository is touched. Import offers two modes:
+
+- **Merge** keeps the current settings and program and unions sessions/plans by id/key,
+  keeping the newest record on conflict (`completedAt`/`startedAt` for sessions,
+  `generatedAt` for plans).
+- **Replace** uses the backup for settings, program, sessions and coach plans.
+
+CSV export flattens sessions to one row per set (UTF-8 BOM, CRLF, RFC 4180 escaping),
+which opens directly in Excel or Google Sheets.
+
+
 ## Derived data (not stored)
 
 - **Personal records**: best e1RM per exercise across completed sessions
