@@ -153,7 +153,9 @@ they are not part of the wire contract.
 ### Coach plan
 
 The wire shape is defined in [`contract/contract.md`](contract/contract.md).
-Persisted as `{ "generatedAt": "...", "plan": { ...CoachPlan } }` under the session id.
+Persisted as `{ "generatedAt": "...", "plan": { ...CoachPlan } }` under the session id
+when a workout starts, and under the stable key `latest` as soon as a check-in plan is
+generated (so the Coach tab and Home teaser can show it before the workout starts).
 
 ### Settings
 
@@ -184,7 +186,7 @@ Persisted as `{ "generatedAt": "...", "plan": { ...CoachPlan } }` under the sess
 | `settings` | `app` | Single record |
 | `programs` | `default` | Seeded on first launch |
 | `sessions` | session id | Sorted by `startedAt` string |
-| `coach_plans` | session id | Latest plan shown in the Coach tab |
+| `coach_plans` | session id / `latest` | Latest plan shown in the Coach tab |
 
 `meta.schemaVersion` is reserved for migrations; v0.1 is version 1. Repository reads
 are defensive: a corrupt record is skipped instead of crashing the history.

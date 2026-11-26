@@ -51,44 +51,51 @@ class CoachScreen extends ConsumerWidget {
             );
           }
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(
-              SsSpacing.lg,
-              SsSpacing.lg,
-              SsSpacing.lg,
-              SsSpacing.section,
-            ),
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Text(
-                    l10n.coachLatestPlan,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const Spacer(),
-                  Text(
-                    l10n.coachOfflineHint,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(latestCoachPlanProvider);
+              await ref.read(latestCoachPlanProvider.future);
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                SsSpacing.lg,
+                SsSpacing.lg,
+                SsSpacing.lg,
+                SsSpacing.section,
+              ),
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Text(
+                      l10n.coachLatestPlan,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: SsSpacing.md),
-              SsCard(
-                child: CoachPlanView(
-                  plan: saved.plan,
-                  readiness: readiness,
-                  showReadinessCard: readiness != null,
+                    const Spacer(),
+                    Text(
+                      l10n.coachOfflineHint,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: SsSpacing.xl),
-              FilledButton.icon(
-                onPressed: () => context.push('/checkin'),
-                icon: const Icon(Icons.refresh_rounded),
-                label: Text(l10n.coachGoCheckIn),
-              ),
-            ],
+                const SizedBox(height: SsSpacing.md),
+                SsCard(
+                  child: CoachPlanView(
+                    plan: saved.plan,
+                    readiness: readiness,
+                    showReadinessCard: readiness != null,
+                  ),
+                ),
+                const SizedBox(height: SsSpacing.xl),
+                FilledButton.icon(
+                  onPressed: () => context.push('/checkin'),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: Text(l10n.coachGoCheckIn),
+                ),
+              ],
+            ),
           );
         },
       ),

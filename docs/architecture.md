@@ -56,10 +56,11 @@ sequenceDiagram
   UI->>API: POST /v1/coach/plan (context + baseline)
   API-->>UI: AI plan (validated + clamped) or fallback
   UI->>CORE: SafetyBounds.clamp(AI plan, context)
+  UI->>DB: save plan as latest (Coach tab + Home)
   U->>UI: Start workout
   UI->>R: resolve(context, final plan)
   R-->>UI: resolved sets (loads, reps, RPE caps, substitutions)
-  UI->>DB: save session + coach plan
+  UI->>DB: save session + coach plan (session id)
 ```
 
 ## Readiness & auto-regulation

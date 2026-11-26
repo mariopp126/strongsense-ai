@@ -19,8 +19,17 @@ class CoachPlanRepository {
   StoreRef<String, Map<String, Object?>> get _store =>
       _database.store(AppDatabase.coachPlansStore);
 
-  Future<void> save(String sessionId, CoachPlan plan) =>
-      _store.record(sessionId).put(_database.db, <String, Object?>{
+  /// Stable key for the most recent plan, including a plan generated at
+  /// check-in before the athlete starts a workout.
+  static const String latestKey = 'latest';
+
+  Future<void> save(String sessionId, CoachPlan plan) => _put(sessionId, plan);
+
+  /// Persist [plan] as the latest plan shown in the Coach tab and Home teaser.
+  Future<void> saveLatest(CoachPlan plan) => _put(latestKey, plan);
+
+  Future<void> _put(String key, CoachPlan plan) =>
+      _store.record(key).put(_database.db, <String, Object?>{
         'generatedAt': DateTime.now().toUtc().toIso8601String(),
         'plan': plan.toJson(),
       });

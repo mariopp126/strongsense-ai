@@ -70,7 +70,9 @@ class Settings(BaseSettings):
     llm_model: str = ""
     llm_timeout_seconds: float = Field(default=20.0, gt=0.0, le=120.0)
     llm_temperature: float = Field(default=0.4, ge=0.0, le=2.0)
-    llm_max_tokens: int = Field(default=900, ge=1, le=32_000)
+    # Reasoning models count hidden thinking tokens against this cap. The plan
+    # itself is small, but 900 tokens was not enough for Gemini 3 "flash" models.
+    llm_max_tokens: int = Field(default=4096, ge=1, le=32_000)
 
     # --- Optional fallback LLM provider --------------------------------
     llm_fallback_provider: str = ""
@@ -164,6 +166,21 @@ class Settings(BaseSettings):
         return result
 
     @staticmethod
+    def _is_local_url(base_url: str) -> bool:
+        """Return True when ``base_url`` points at a localhost endpoint.
+
+        Local providers (Ollama, LM Studio, ...) do not require an API key.
+        Remote providers (OpenAI, OpenRouter, ...) always do.
+        """
+        lower = base_url.lower()
+        return (
+            "localhost" in lower
+            or "127.0.0.1" in lower
+            or "0.0.0.0" in lower
+            or "::1" in lower
+        )
+
+    @staticmethod
     def _is_configured(
         provider: str,
         base_url: str,
@@ -174,8 +191,11 @@ class Settings(BaseSettings):
             return False
         if not base_url or not model:
             return False
-        # OpenAI-compatible endpoints such as a local Ollama do not need a key.
-        return not (provider == PROVIDER_ANTHROPIC and api_key is None)
+        # Local endpoints (Ollama, LM Studio, ...) do not need an API key.
+        if Settings._is_local_url(base_url):
+            return True
+        # Remote OpenAI-compatible and Anthropic endpoints require an API key.
+        return api_key is not None
 
     def log_summary(self) -> dict[str, object]:
         """Safe, key-free summary used once at startup."""

@@ -165,6 +165,37 @@ def test_provider_timeout_returns_rules_fallback(
     assert response.json()["source"] == "rules_fallback"
 
 
+def test_rules_fallback_logs_provider_reason(
+    llm_client: TestClient,
+    plan_payload: dict[str, Any],
+    openai_route: Any,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    openai_route.mock(
+        return_value=httpx.Response(
+            429,
+            json=[
+                {
+                    "error": {
+                        "message": (
+                            "You exceeded your current quota. "
+                            "Quota exceeded for per day limit."
+                        )
+                    }
+                }
+            ],
+        )
+    )
+    with caplog.at_level("INFO", logger="strongsense.coach"):
+        response = post_plan(llm_client, plan_payload)
+    assert response.status_code == 200
+    assert response.json()["source"] == "rules_fallback"
+    assert openai_route.call_count == 1
+    events = [record for record in caplog.records if record.getMessage() == "request.completed"]
+    assert events
+    assert "quota" in events[-1].event_data["llmError"].lower()
+
+
 def test_invalid_json_returns_rules_fallback(
     llm_client: TestClient,
     plan_payload: dict[str, Any],

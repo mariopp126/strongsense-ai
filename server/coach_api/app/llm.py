@@ -36,6 +36,10 @@ RETRY_BACKOFF_SECONDS = 0.25
 MAX_ATTEMPTS = 2
 MIN_BUDGET_SECONDS = 0.5
 ANTHROPIC_VERSION = "2023-06-01"
+#: Provider error messages are only used for diagnostics; keep them short and single-line.
+MAX_REASON_CHARS = 240
+#: Fragments that mean the 429 is a quota exhaustion rather than a short burst.
+TERMINAL_QUOTA_MARKERS = ("per day", "daily limit", "quota exceeded")
 
 _JSON_SCHEMA_RESPONSE_FORMAT: dict[str, Any] = {
     "type": "json_schema",
@@ -317,6 +321,55 @@ def _response_json(response: httpx.Response, provider: str) -> dict[str, Any]:
     return payload
 
 
+def _provider_error_detail(response: httpx.Response) -> str:
+    """Return a short, single-line provider error message for diagnostics.
+
+    Providers such as Gemini wrap errors in a list (``[{"error": {...}}]``) instead
+    of the OpenAI ``{"error": {...}}`` object, so both shapes are accepted. The
+    message is never returned to the app; it only appears in server logs.
+    """
+    try:
+        payload = response.json()
+    except ValueError:
+        return ""
+
+    message = ""
+    candidate: Any = payload
+    if isinstance(payload, list) and payload:
+        candidate = payload[0]
+    if isinstance(candidate, dict):
+        error = candidate.get("error")
+        if isinstance(error, dict):
+            message = str(error.get("message") or "")
+        elif isinstance(error, str):
+            message = error
+        if not message:
+            message = str(candidate.get("message") or "")
+
+    message = " ".join(message.split())
+    if len(message) > MAX_REASON_CHARS:
+        message = message[: MAX_REASON_CHARS - 1].rstrip() + "…"
+    return message
+
+
+def _retry_after_seconds(response: httpx.Response) -> float | None:
+    """Parse a ``Retry-After`` header expressed in seconds, when present."""
+    raw = response.headers.get("retry-after")
+    if not raw:
+        return None
+    try:
+        seconds = float(raw)
+    except ValueError:
+        return None
+    return seconds if seconds >= 0 else None
+
+
+def _is_terminal_quota(detail: str) -> bool:
+    """True when a 429 is a quota exhaustion that a short retry cannot fix."""
+    lowered = detail.lower()
+    return any(marker in lowered for marker in TERMINAL_QUOTA_MARKERS)
+
+
 def _usage_from_openai(payload: dict[str, Any]) -> TokenUsage:
     usage = payload.get("usage")
     if not isinstance(usage, dict):
@@ -383,7 +436,12 @@ class _ProviderClient:
         *,
         deadline: float,
     ) -> httpx.Response:
-        """POST with one retry on 429/5xx/timeout, respecting the deadline."""
+        """POST with one retry on 429/5xx/timeout, respecting the deadline.
+
+        A 429 caused by an exhausted quota (daily quota, or a ``Retry-After`` that
+        outlives the remaining budget) is not retried: the retry cannot succeed and
+        would only delay the deterministic fallback.
+        """
         last_reason = "request failed"
         for attempt in range(MAX_ATTEMPTS):
             remaining = deadline - time.monotonic()
@@ -406,8 +464,20 @@ class _ProviderClient:
                     raise LlmProviderError(self.name, last_reason) from exc
                 continue
             if response.status_code == 429 or response.status_code >= 500:
+                detail = _provider_error_detail(response)
                 last_reason = f"provider returned HTTP {response.status_code}"
-                if not await self._wait_before_retry(attempt, deadline):
+                if detail:
+                    last_reason = f"{last_reason}: {detail}"
+                retry_after = _retry_after_seconds(response)
+                exceeds_budget = retry_after is not None and retry_after > max(
+                    0.0, deadline - time.monotonic()
+                )
+                if exceeds_budget and retry_after is not None:
+                    last_reason = f"{last_reason} (retry after {retry_after:.0f}s)"
+                terminal = response.status_code == 429 and (
+                    _is_terminal_quota(detail) or exceeds_budget
+                )
+                if terminal or not await self._wait_before_retry(attempt, deadline):
                     raise LlmProviderError(self.name, last_reason)
                 continue
             return response
@@ -447,8 +517,13 @@ class OpenAiCompatibleClient(_ProviderClient):
             fallback_payload["response_format"] = {"type": "json_object"}
             response = await self._post(url, headers, fallback_payload, deadline=deadline)
         if response.status_code >= 400:
-            raise LlmProviderError(self.name, f"provider returned HTTP {response.status_code}")
+            detail = _provider_error_detail(response)
+            reason = f"provider returned HTTP {response.status_code}"
+            if detail:
+                reason = f"{reason}: {detail}"
+            raise LlmProviderError(self.name, reason)
         data = _response_json(response, self.name)
+        _raise_if_openai_truncated(data, self.name)
         return ChatResult(
             text=_openai_message_text(data, self.name),
             usage=_usage_from_openai(data),
@@ -477,8 +552,13 @@ class AnthropicClient(_ProviderClient):
         }
         response = await self._post(url, headers, payload, deadline=deadline)
         if response.status_code >= 400:
-            raise LlmProviderError(self.name, f"provider returned HTTP {response.status_code}")
+            detail = _provider_error_detail(response)
+            reason = f"provider returned HTTP {response.status_code}"
+            if detail:
+                reason = f"{reason}: {detail}"
+            raise LlmProviderError(self.name, reason)
         data = _response_json(response, self.name)
+        _raise_if_anthropic_truncated(data, self.name)
         return ChatResult(text=_anthropic_text(data, self.name), usage=_usage_from_anthropic(data))
 
 
@@ -498,6 +578,33 @@ def _split_for_anthropic(
                 }
             )
     return "\n\n".join(part for part in system_parts if part), chat_messages
+
+
+TRUNCATION_REASON = (
+    "provider output was truncated at LLM_MAX_TOKENS; raise LLM_MAX_TOKENS "
+    "(reasoning models spend part of the budget on thinking)"
+)
+
+
+def _raise_if_openai_truncated(data: dict[str, Any], provider: str) -> None:
+    """Reject a chat completion cut off by the token cap.
+
+    Reasoning models (for example Gemini's thinking variants) count hidden
+    reasoning tokens against ``max_tokens``. With a small budget the JSON answer
+    is cut mid-object, so retrying the same request with the same cap can never
+    succeed; fail with an actionable message instead.
+    """
+    choices = data.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return
+    first = choices[0]
+    if isinstance(first, dict) and first.get("finish_reason") == "length":
+        raise LlmProviderError(provider, TRUNCATION_REASON)
+
+
+def _raise_if_anthropic_truncated(data: dict[str, Any], provider: str) -> None:
+    if data.get("stop_reason") == "max_tokens":
+        raise LlmProviderError(provider, TRUNCATION_REASON)
 
 
 def _openai_message_text(data: dict[str, Any], provider: str) -> str:

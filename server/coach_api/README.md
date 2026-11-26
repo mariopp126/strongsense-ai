@@ -143,7 +143,7 @@ example file; the shape is always the same:
 | DeepSeek | `openai_compatible` | `https://api.deepseek.com/v1` | `deepseek-chat` |
 | OpenRouter | `openai_compatible` | `https://openrouter.ai/api/v1` | `openai/gpt-4.1-mini` |
 | Groq | `openai_compatible` | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
-| Gemini (compat) | `openai_compatible` | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-2.0-flash` |
+| Gemini (compat) | `openai_compatible` | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-3.5-flash-lite` |
 | Ollama (local) | `openai_compatible` | `http://127.0.0.1:11434/v1` | `llama3.1:8b` |
 | Anthropic | `anthropic` | `https://api.anthropic.com` | `claude-3-5-haiku-latest` |
 
@@ -155,6 +155,11 @@ Optional fallback: set `LLM_FALLBACK_PROVIDER`, `LLM_FALLBACK_BASE_URL`,
 `LLM_FALLBACK_API_KEY`, `LLM_FALLBACK_MODEL` to a second profile with the same shape.
 The primary is tried first; the fallback is tried when it fails. The whole call
 (primary + fallback + one repair retry each) is bound by `LLM_TIMEOUT_SECONDS` (20 s).
+
+When every provider fails, the request log gets an `llmError` field with the last
+provider reason (HTTP status, timeout, quota or truncation). A 429 from an exhausted
+quota is not retried; the service logs it and returns the deterministic
+`rules_fallback` plan instead of delaying the response.
 
 ## Configuration reference
 
@@ -172,7 +177,7 @@ The primary is tried first; the fallback is tried when it fails. The whole call
 | `LLM_MODEL` | empty | Model id. |
 | `LLM_TIMEOUT_SECONDS` | `20` | Overall call budget. |
 | `LLM_TEMPERATURE` | `0.4` | Sampling temperature. |
-| `LLM_MAX_TOKENS` | `900` | Response token budget. |
+| `LLM_MAX_TOKENS` | `4096` | Output cap. Reasoning models count hidden thinking tokens here; 900 truncated the JSON plan. |
 | `LLM_FALLBACK_*` | empty | Optional second provider profile. |
 | `DATABASE_URL` | empty | PostgreSQL URL enabling the optional plan cache; empty = in-memory cache only. |
 | `CACHE_TTL_SECONDS` | `86400` | Cache entry TTL in seconds; `0` disables expiry. |
