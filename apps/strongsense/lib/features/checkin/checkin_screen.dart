@@ -105,9 +105,13 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
   Future<void> _requestAi() async {
     final settings = ref.read(settingsControllerProvider);
     final coachContext = _coachContext;
-    if (coachContext == null ||
-        !settings.coachEnabled ||
-        settings.coachBaseUrl.trim().isEmpty) {
+    if (coachContext == null) {
+      return;
+    }
+
+    if (!settings.coachEnabled || settings.coachBaseUrl.trim().isEmpty) {
+      // Keep the Coach tab in sync with the offline plan the user just saw.
+      await _rememberPlan(_result?.plan);
       return;
     }
 
@@ -116,11 +120,28 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
     if (!mounted) {
       return;
     }
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _result = result;
       _aiLoading = false;
-      _aiNotice = result.aiError;
+      _aiNotice =
+          result.aiError ??
+          (result.fallbackUsed ? l10n.planAiUnavailable : null);
     });
+    await _rememberPlan(result.plan);
+  }
+
+  /// Persists the plan the user is looking at and refreshes the Coach tab and
+  /// Home teaser. The plan is stored again under the session id when the
+  /// workout starts.
+  Future<void> _rememberPlan(CoachPlan? plan) async {
+    if (plan == null || !mounted) {
+      return;
+    }
+    await ref.read(coachPlanRepositoryProvider).saveLatest(plan);
+    if (mounted) {
+      ref.invalidate(latestCoachPlanProvider);
+    }
   }
 
   Future<void> _startWorkout() async {
@@ -140,6 +161,7 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
         .read(sessionControllerProvider.notifier)
         .start(checkIn: checkIn, plan: plan);
     ref.invalidate(historyProvider);
+    ref.invalidate(latestCoachPlanProvider);
     if (mounted) {
       context.go('/workout/${session.id}');
     }

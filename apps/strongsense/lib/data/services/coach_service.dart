@@ -9,6 +9,7 @@ class CoachResult {
     required this.baselinePlan,
     required this.aiUsed,
     this.aiError,
+    this.fallbackUsed = false,
     this.model = '',
   });
 
@@ -18,6 +19,9 @@ class CoachResult {
   /// The deterministic rules plan; never empty.
   final CoachPlan baselinePlan;
   final bool aiUsed;
+
+  /// True when the server reached its LLM but returned the deterministic fallback.
+  final bool fallbackUsed;
   final String? aiError;
   final String model;
 }
@@ -49,6 +53,7 @@ class CoachService {
         plan: clamped,
         baselinePlan: rules,
         aiUsed: response.source == CoachSource.llm,
+        fallbackUsed: response.source == CoachSource.rulesFallback,
         model: response.meta.model,
       );
     } on CoachApiException catch (error) {

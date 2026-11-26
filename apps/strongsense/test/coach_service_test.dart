@@ -77,6 +77,18 @@ CoachPlan _unsafeAiPlan() => const CoachPlan(
   disclaimer: 'model supplied',
 );
 
+CoachPlan _fallbackPlan() => const CoachPlan(
+  source: CoachSource.rulesFallback,
+  summary: 'Offline plan',
+  readinessExplanation: 'Server kept the baseline plan.',
+  rpeCap: 8,
+  deload: false,
+  adjustments: <Adjustment>[],
+  tips: <CoachTip>[],
+  flags: <String>[],
+  disclaimer: 'server',
+);
+
 void main() {
   test('uses the offline rules plan when coaching is disabled', () async {
     final client = _FakeCoachClient(response: null);
@@ -119,6 +131,30 @@ void main() {
     expect(adjustment.setsDelta, 2);
     expect(result.plan.rpeCap, 9);
     expect(result.plan.disclaimer, SafetyBounds.disclaimer);
+  });
+
+  test('marks a server rules_fallback response as a fallback', () async {
+    final client = _FakeCoachClient(
+      response: CoachResponse(
+        source: CoachSource.rulesFallback,
+        plan: _fallbackPlan(),
+        meta: const CoachMeta(model: 'test-model'),
+      ),
+    );
+    final service = CoachService(
+      settings: const AppSettings(
+        coachEnabled: true,
+        coachBaseUrl: 'http://fake',
+      ),
+      client: client,
+    );
+
+    final result = await service.generate(_context());
+
+    expect(client.calls, 1);
+    expect(result.aiUsed, isFalse);
+    expect(result.fallbackUsed, isTrue);
+    expect(result.plan.source, CoachSource.rulesFallback);
   });
 
   test('sends the bearer token when one is configured', () async {

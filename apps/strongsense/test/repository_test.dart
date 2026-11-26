@@ -149,5 +149,27 @@ void main() {
       expect(latest, isNotNull);
       expect(latest!.plan.summary, 'Test summary');
     });
+
+    test('saveLatest stores a plan without a session id', () async {
+      final repository = CoachPlanRepository(database);
+      const plan = CoachPlan(
+        source: CoachSource.llm,
+        summary: 'AI plan from check-in',
+        readinessExplanation: 'Explanation',
+        rpeCap: 8.5,
+        deload: false,
+        adjustments: <Adjustment>[],
+        tips: <CoachTip>[],
+        flags: <String>[],
+        disclaimer: SafetyBounds.disclaimer,
+      );
+
+      await repository.saveLatest(plan);
+
+      final latest = await repository.latest();
+      expect(latest, isNotNull);
+      expect(latest!.plan.summary, 'AI plan from check-in');
+      expect(latest.plan.source, CoachSource.llm);
+    });
   });
 }
