@@ -26,6 +26,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Timer? _debounce;
   bool _testing = false;
   bool _tokenVisible = false;
+  bool _backupBusy = false;
 
   @override
   void initState() {
@@ -130,6 +131,134 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ref.invalidate(latestCoachPlanProvider);
     if (mounted) {
       context.go('/onboarding');
+    }
+  }
+
+  String _fileStamp() {
+    final now = DateTime.now();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${now.year}${two(now.month)}${two(now.day)}-'
+        '${two(now.hour)}${two(now.minute)}';
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _exportJson() => _exportFile(
+    fileName: 'strongsense-backup-${_fileStamp()}.json',
+    mimeType: 'application/json',
+    build: () => ref.read(backupServiceProvider).exportJson(),
+  );
+
+  Future<void> _exportCsv() => _exportFile(
+    fileName: 'strongsense-sessions-${_fileStamp()}.csv',
+    mimeType: 'text/csv; charset=utf-8',
+    build: () => ref.read(backupServiceProvider).exportCsv(),
+  );
+
+  Future<void> _exportFile({
+    required String fileName,
+    required String mimeType,
+    required Future<String> Function() build,
+  }) async {
+    if (_backupBusy) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    setState(() => _backupBusy = true);
+    try {
+      final content = await build();
+      final saved = await ref
+          .read(backupFileServiceProvider)
+          .exportText(fileName: fileName, content: content, mimeType: mimeType);
+      if (saved) {
+        _showMessage(l10n.settingsBackupExported);
+      }
+    } catch (error) {
+      _showMessage('${l10n.settingsBackupExportFailed}: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _backupBusy = false);
+      }
+    }
+  }
+
+  Future<void> _importBackup() async {
+    if (_backupBusy) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    final String? content;
+    try {
+      content = await ref.read(backupFileServiceProvider).pickJsonText();
+    } catch (error) {
+      _showMessage('${l10n.settingsImportFailed}: $error');
+      return;
+    }
+    if (content == null || !mounted) {
+      return;
+    }
+
+    final mode = await showDialog<BackupImportMode>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.settingsImportTitle),
+        content: Text(l10n.settingsImportBody),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(BackupImportMode.merge),
+            child: Text(l10n.settingsImportMerge),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(BackupImportMode.replace),
+            child: Text(l10n.settingsImportReplace),
+          ),
+        ],
+      ),
+    );
+    if (mode == null || !mounted) {
+      return;
+    }
+
+    setState(() => _backupBusy = true);
+    try {
+      final result = await ref
+          .read(backupServiceProvider)
+          .importJson(content, mode: mode);
+      await ref
+          .read(settingsControllerProvider.notifier)
+          .update(result.settings);
+      await ref.read(programControllerProvider.notifier).save(result.program);
+      ref.read(sessionControllerProvider.notifier).clear();
+      final inProgress = await ref
+          .read(sessionRepositoryProvider)
+          .loadInProgress();
+      if (inProgress != null) {
+        await ref.read(sessionControllerProvider.notifier).load(inProgress.id);
+      }
+      ref.invalidate(historyProvider);
+      ref.invalidate(latestCoachPlanProvider);
+      _showMessage(
+        l10n.settingsImportDone(result.sessionCount, result.coachPlanCount),
+      );
+    } catch (error) {
+      _showMessage('${l10n.settingsImportFailed}: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _backupBusy = false);
+      }
     }
   }
 
@@ -427,20 +556,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: l10n.settingsData,
             icon: Icons.storage_outlined,
           ),
+          if (_backupBusy) ...<Widget>[
+            const SizedBox(height: SsSpacing.sm),
+            const LinearProgressIndicator(minHeight: 3),
+            const SizedBox(height: SsSpacing.sm),
+            Text(
+              l10n.settingsBackupWorking,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
           SsCard(
             padding: EdgeInsets.zero,
             child: Material(
               type: MaterialType.transparency,
-              child: ListTile(
-                leading: const Icon(
-                  Icons.delete_forever_rounded,
-                  color: SsColors.red500,
-                ),
-                title: Text(
-                  l10n.settingsReset,
-                  style: const TextStyle(color: SsColors.red500),
-                ),
-                onTap: _resetData,
+              child: Column(
+                children: <Widget>[
+                  ListTile(
+                    leading: const Icon(
+                      Icons.file_upload_outlined,
+                      color: SsColors.emerald600,
+                    ),
+                    title: Text(l10n.settingsExportBackup),
+                    subtitle: Text(l10n.settingsExportBackupBody),
+                    enabled: !_backupBusy,
+                    onTap: _exportJson,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.table_view_outlined,
+                      color: SsColors.emerald600,
+                    ),
+                    title: Text(l10n.settingsExportCsv),
+                    subtitle: Text(l10n.settingsExportCsvBody),
+                    enabled: !_backupBusy,
+                    onTap: _exportCsv,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.file_download_outlined,
+                      color: SsColors.emerald600,
+                    ),
+                    title: Text(l10n.settingsImportBackup),
+                    subtitle: Text(l10n.settingsImportBackupBody),
+                    enabled: !_backupBusy,
+                    onTap: _importBackup,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.delete_forever_rounded,
+                      color: SsColors.red500,
+                    ),
+                    title: Text(
+                      l10n.settingsReset,
+                      style: const TextStyle(color: SsColors.red500),
+                    ),
+                    enabled: !_backupBusy,
+                    onTap: _resetData,
+                  ),
+                ],
               ),
             ),
           ),

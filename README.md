@@ -196,6 +196,21 @@ Ready-to-use `LLM_BASE_URL` values:
 | Ollama (local) | `http://127.0.0.1:11434/v1` |
 | Anthropic (native) | `https://api.anthropic.com` |
 
+## Backup, export and import
+
+**Settings → Data** gives you full ownership of the local data:
+
+- **Export backup (JSON)** — settings, program, sessions and coach plans in one
+  versioned `strongsense.backup` file. Web/desktop downloads or saves it; Android/iOS
+  opens the system share sheet.
+- **Export sessions (CSV)** — one row per set, ready for Excel or Google Sheets.
+- **Import backup (JSON)** — validates the whole file first, then lets you **Merge**
+  (keep current settings/program, add the newest sessions/plans) or **Replace**
+  (use the backup for everything).
+
+The format and conflict rules are documented in
+[`docs/data-model.md`](docs/data-model.md#backup-format).
+
 ## Testing
 
 ```powershell
