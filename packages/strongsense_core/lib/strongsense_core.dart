@@ -16,6 +16,7 @@ export 'src/engines/program_templates.dart';
 export 'src/engines/progression_engine.dart';
 export 'src/engines/readiness_engine.dart';
 export 'src/engines/records_calculator.dart';
+export 'src/engines/reminder_schedule.dart';
 export 'src/engines/safety_bounds.dart';
 export 'src/engines/session_classifier.dart';
 export 'src/engines/session_summary_calculator.dart';

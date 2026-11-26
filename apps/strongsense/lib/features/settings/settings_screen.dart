@@ -27,6 +27,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _testing = false;
   bool _tokenVisible = false;
   bool _backupBusy = false;
+  bool _remindersBusy = false;
 
   @override
   void initState() {
@@ -271,6 +272,108 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final definition = ProgramTemplates.byId(template.templateId);
     final name = definition?.name ?? template.templateId;
     return '$name · ${l10n.settingsProgramWeek(template.week)}';
+  }
+
+  Future<void> _updateAndSyncReminders(AppSettings next) async {
+    await _update(next);
+    await ref.read(notificationServiceProvider).syncReminders(next);
+  }
+
+  Future<void> _toggleReminders(bool enabled) async {
+    final l10n = AppLocalizations.of(context);
+    if (!enabled) {
+      final latest = ref.read(settingsControllerProvider);
+      await _updateAndSyncReminders(latest.copyWith(remindersEnabled: false));
+      return;
+    }
+    setState(() => _remindersBusy = true);
+    final granted = await ref
+        .read(notificationServiceProvider)
+        .requestPermissions();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _remindersBusy = false);
+    if (!granted) {
+      _showMessage(l10n.settingsNotificationsDenied);
+      return;
+    }
+    final latest = ref.read(settingsControllerProvider);
+    await _updateAndSyncReminders(latest.copyWith(remindersEnabled: true));
+  }
+
+  Future<void> _pickReminderTime() async {
+    final current = ref.read(settingsControllerProvider);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: current.reminderHour,
+        minute: current.reminderMinute,
+      ),
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    final latest = ref.read(settingsControllerProvider);
+    await _updateAndSyncReminders(
+      latest.copyWith(reminderHour: picked.hour, reminderMinute: picked.minute),
+    );
+  }
+
+  Future<void> _toggleWeekday(int weekday, bool selected) async {
+    final settings = ref.read(settingsControllerProvider);
+    final days = settings.reminderWeekdays.toSet();
+    if (selected) {
+      days.add(weekday);
+    } else if (days.length > 1) {
+      days.remove(weekday);
+    }
+    final ordered = days.toList(growable: false)..sort();
+    await _updateAndSyncReminders(settings.copyWith(reminderWeekdays: ordered));
+  }
+
+  Future<void> _toggleQuietHours(bool enabled) async {
+    final settings = ref.read(settingsControllerProvider);
+    await _updateAndSyncReminders(
+      settings.copyWith(quietHoursEnabled: enabled),
+    );
+  }
+
+  Future<void> _pickQuietTime({required bool start}) async {
+    final current = ref.read(settingsControllerProvider);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: start ? current.quietStartHour : current.quietEndHour,
+        minute: 0,
+      ),
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    final latest = ref.read(settingsControllerProvider);
+    await _updateAndSyncReminders(
+      start
+          ? latest.copyWith(quietStartHour: picked.hour)
+          : latest.copyWith(quietEndHour: picked.hour),
+    );
+  }
+
+  Future<void> _toggleRestNotifications(bool enabled) async {
+    if (enabled) {
+      final granted = await ref
+          .read(notificationServiceProvider)
+          .requestPermissions();
+      if (!mounted) {
+        return;
+      }
+      if (!granted) {
+        _showMessage(AppLocalizations.of(context).settingsNotificationsDenied);
+        return;
+      }
+    }
+    final settings = ref.read(settingsControllerProvider);
+    await _update(settings.copyWith(restNotificationsEnabled: enabled));
   }
 
   Future<void> _chooseProgramTemplate() async {
@@ -525,6 +628,116 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: SsSpacing.xl),
+          SsSectionHeader(
+            title: l10n.settingsReminders,
+            icon: Icons.notifications_active_outlined,
+          ),
+          SsCard(
+            child: Material(
+              type: MaterialType.transparency,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.settingsTrainingReminders),
+                    subtitle: Text(l10n.settingsTrainingRemindersHint),
+                    value: settings.remindersEnabled,
+                    onChanged: _remindersBusy ? null : _toggleReminders,
+                  ),
+                  if (_remindersBusy)
+                    const LinearProgressIndicator(minHeight: 3),
+                  if (settings.remindersEnabled) ...<Widget>[
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(l10n.settingsReminderTime),
+                      trailing: Text(
+                        TimeOfDay(
+                          hour: settings.reminderHour,
+                          minute: settings.reminderMinute,
+                        ).format(context),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: SsColors.emerald700,
+                        ),
+                      ),
+                      onTap: _pickReminderTime,
+                    ),
+                    const SizedBox(height: SsSpacing.sm),
+                    Text(
+                      l10n.settingsReminderDays,
+                      style: theme.textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: SsSpacing.sm),
+                    Wrap(
+                      spacing: SsSpacing.sm,
+                      runSpacing: SsSpacing.sm,
+                      children: <Widget>[
+                        for (
+                          var weekday = DateTime.monday;
+                          weekday <= DateTime.sunday;
+                          weekday++
+                        )
+                          FilterChip(
+                            label: Text(l10n.weekdayShort(weekday)),
+                            selected: settings.reminderWeekdays.contains(
+                              weekday,
+                            ),
+                            onSelected: (selected) =>
+                                _toggleWeekday(weekday, selected),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: SsSpacing.md),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(l10n.settingsQuietHours),
+                      value: settings.quietHoursEnabled,
+                      onChanged: _toggleQuietHours,
+                    ),
+                    if (settings.quietHoursEnabled) ...<Widget>[
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.settingsQuietStart),
+                        trailing: Text(
+                          TimeOfDay(
+                            hour: settings.quietStartHour,
+                            minute: 0,
+                          ).format(context),
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: SsColors.emerald700,
+                          ),
+                        ),
+                        onTap: () => _pickQuietTime(start: true),
+                      ),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.settingsQuietEnd),
+                        trailing: Text(
+                          TimeOfDay(
+                            hour: settings.quietEndHour,
+                            minute: 0,
+                          ).format(context),
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: SsColors.emerald700,
+                          ),
+                        ),
+                        onTap: () => _pickQuietTime(start: false),
+                      ),
+                    ],
+                    const Divider(height: 1),
+                  ],
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.settingsRestNotifications),
+                    subtitle: Text(l10n.settingsRestNotificationsHint),
+                    value: settings.restNotificationsEnabled,
+                    onChanged: _toggleRestNotifications,
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: SsSpacing.xl),

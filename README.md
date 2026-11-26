@@ -74,6 +74,7 @@ overwrite your changes); reselect the template to reattach.
 - **AI coach (optional)**: OpenAI-compatible or native Anthropic, with a server-side proxy, structured output validation and hard safety clamps.
 - **Live workout**: set-by-set logging, weight/reps/RPE editing, rest timer, resumable sessions.
 - **Session summary**: volume, e1RM, missed sets, duration, PR detection, next-session targets.
+- **Training reminders & rest notifications**: local notifications for selected weekdays/times, quiet hours, and rest-timer completion.
 - **Program templates**: 5/3/1, GZCLP and block periodization with template-aware progression.
 - **History & progress**: session log plus e1RM line chart and volume bar chart.
 - **Local-first**: sembast on device/IndexedDB in the browser; no account required.

@@ -204,6 +204,28 @@ extension JsonMapReader on Map<String, dynamic> {
     }, growable: false);
   }
 
+  List<int> optIntList(String key) {
+    final value = this[key];
+    if (value == null) {
+      return const <int>[];
+    }
+    if (value is! List) {
+      throw FormatException(
+        'Expected array at "$key", got ${value.runtimeType}',
+      );
+    }
+    return List<int>.generate(value.length, (index) {
+      final item = value[index];
+      if (item is int) {
+        return item;
+      }
+      if (item is num && item == item.roundToDouble()) {
+        return item.toInt();
+      }
+      throw FormatException('Expected integer at "$key[$index]"');
+    }, growable: false);
+  }
+
   Map<String, double> requireDoubleMap(String key) {
     final raw = requireMap(key);
     return raw.map((name, value) {
