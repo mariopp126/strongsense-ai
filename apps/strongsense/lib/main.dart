@@ -9,6 +9,7 @@ import 'data/local/app_database.dart';
 import 'data/repositories/program_repository.dart';
 import 'data/repositories/session_repository.dart';
 import 'data/repositories/settings_repository.dart';
+import 'data/services/notification_service.dart';
 import 'state/providers.dart';
 
 Future<void> main() async {
@@ -21,6 +22,10 @@ Future<void> main() async {
     final settings = await SettingsRepository(database).load();
     final program = await ProgramRepository(database).loadOrSeed();
     final activeSession = await SessionRepository(database).loadInProgress();
+
+    final notifications = createNotificationService();
+    await notifications.initialize();
+    await notifications.syncReminders(settings);
 
     runApp(
       ProviderScope(

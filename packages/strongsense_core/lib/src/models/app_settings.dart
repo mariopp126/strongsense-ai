@@ -16,6 +16,14 @@ class AppSettings {
     this.onboardingComplete = false,
     this.userName = '',
     this.bodyWeightKg,
+    this.remindersEnabled = false,
+    this.reminderHour = 18,
+    this.reminderMinute = 0,
+    this.reminderWeekdays = const <int>[1, 3, 5],
+    this.restNotificationsEnabled = true,
+    this.quietHoursEnabled = false,
+    this.quietStartHour = 22,
+    this.quietEndHour = 7,
   });
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
@@ -34,6 +42,14 @@ class AppSettings {
     onboardingComplete: json.optBool('onboardingComplete') ?? false,
     userName: json.optString('userName') ?? '',
     bodyWeightKg: json.optDouble('bodyWeightKg'),
+    remindersEnabled: json.optBool('remindersEnabled') ?? false,
+    reminderHour: _clampInt(json.optInt('reminderHour') ?? 18, 0, 23),
+    reminderMinute: _clampInt(json.optInt('reminderMinute') ?? 0, 0, 59),
+    reminderWeekdays: _normalizeWeekdays(json.optIntList('reminderWeekdays')),
+    restNotificationsEnabled: json.optBool('restNotificationsEnabled') ?? true,
+    quietHoursEnabled: json.optBool('quietHoursEnabled') ?? false,
+    quietStartHour: _clampInt(json.optInt('quietStartHour') ?? 22, 0, 23),
+    quietEndHour: _clampInt(json.optInt('quietEndHour') ?? 7, 0, 23),
   );
 
   final Unit unit;
@@ -47,6 +63,18 @@ class AppSettings {
   final bool onboardingComplete;
   final String userName;
   final double? bodyWeightKg;
+
+  /// Training reminder preferences (local notifications only).
+  final bool remindersEnabled;
+  final int reminderHour;
+  final int reminderMinute;
+
+  /// Weekdays to remind, using `DateTime.monday`..`DateTime.sunday` (1..7).
+  final List<int> reminderWeekdays;
+  final bool restNotificationsEnabled;
+  final bool quietHoursEnabled;
+  final int quietStartHour;
+  final int quietEndHour;
 
   TrainingSettings get training =>
       TrainingSettings(unit: unit, increments: increments);
@@ -63,6 +91,14 @@ class AppSettings {
     'onboardingComplete': onboardingComplete,
     'userName': userName,
     'bodyWeightKg': bodyWeightKg,
+    'remindersEnabled': remindersEnabled,
+    'reminderHour': reminderHour,
+    'reminderMinute': reminderMinute,
+    'reminderWeekdays': reminderWeekdays,
+    'restNotificationsEnabled': restNotificationsEnabled,
+    'quietHoursEnabled': quietHoursEnabled,
+    'quietStartHour': quietStartHour,
+    'quietEndHour': quietEndHour,
   };
 
   AppSettings copyWith({
@@ -78,6 +114,14 @@ class AppSettings {
     String? userName,
     double? bodyWeightKg,
     bool clearBodyWeight = false,
+    bool? remindersEnabled,
+    int? reminderHour,
+    int? reminderMinute,
+    List<int>? reminderWeekdays,
+    bool? restNotificationsEnabled,
+    bool? quietHoursEnabled,
+    int? quietStartHour,
+    int? quietEndHour,
   }) {
     return AppSettings(
       unit: unit ?? this.unit,
@@ -93,6 +137,40 @@ class AppSettings {
       bodyWeightKg: clearBodyWeight
           ? null
           : (bodyWeightKg ?? this.bodyWeightKg),
+      remindersEnabled: remindersEnabled ?? this.remindersEnabled,
+      reminderHour: reminderHour ?? this.reminderHour,
+      reminderMinute: reminderMinute ?? this.reminderMinute,
+      reminderWeekdays: reminderWeekdays ?? this.reminderWeekdays,
+      restNotificationsEnabled:
+          restNotificationsEnabled ?? this.restNotificationsEnabled,
+      quietHoursEnabled: quietHoursEnabled ?? this.quietHoursEnabled,
+      quietStartHour: quietStartHour ?? this.quietStartHour,
+      quietEndHour: quietEndHour ?? this.quietEndHour,
     );
   }
+}
+
+int _clampInt(int value, int min, int max) {
+  if (value < min) {
+    return min;
+  }
+  if (value > max) {
+    return max;
+  }
+  return value;
+}
+
+List<int> _normalizeWeekdays(List<int> values) {
+  final normalized =
+      values
+          .where(
+            (value) => value >= DateTime.monday && value <= DateTime.sunday,
+          )
+          .toSet()
+          .toList(growable: false)
+        ..sort();
+  if (normalized.isEmpty) {
+    return const <int>[DateTime.monday, DateTime.wednesday, DateTime.friday];
+  }
+  return List<int>.unmodifiable(normalized);
 }

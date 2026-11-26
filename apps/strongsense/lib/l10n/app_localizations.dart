@@ -340,6 +340,39 @@ class AppLocalizations {
   String get settingsImportFailed =>
       _es ? 'No se pudo importar la copia' : 'Could not import the backup';
   String get settingsBackupWorking => _es ? 'Procesando…' : 'Working…';
+  String get settingsReminders => _es ? 'Recordatorios' : 'Reminders';
+  String get settingsTrainingReminders =>
+      _es ? 'Recordatorios de entrenamiento' : 'Training reminders';
+  String get settingsTrainingRemindersHint => _es
+      ? 'Recibe una notificación local en tus días de entrenamiento.'
+      : 'Get a local notification on your training days.';
+  String get settingsReminderTime =>
+      _es ? 'Hora del recordatorio' : 'Reminder time';
+  String get settingsReminderDays => _es ? 'Días' : 'Days';
+  String get settingsQuietHours => _es ? 'Horas silenciosas' : 'Quiet hours';
+  String get settingsQuietStart => _es ? 'Silencio desde' : 'Quiet from';
+  String get settingsQuietEnd => _es ? 'Silencio hasta' : 'Quiet until';
+  String get settingsRestNotifications =>
+      _es ? 'Notificaciones del descanso' : 'Rest timer notifications';
+  String get settingsRestNotificationsHint => _es
+      ? 'Avisa cuando termine un descanso.'
+      : 'Notify me when a rest period ends.';
+  String get settingsNotificationsDenied => _es
+      ? 'No se activaron las notificaciones. Revisa los ajustes del sistema.'
+      : 'Notifications were not enabled. Check your system settings.';
+  String get settingsNotificationsUnavailable => _es
+      ? 'Las notificaciones no están disponibles en este dispositivo.'
+      : 'Notifications are not available on this device.';
+  String weekdayShort(int weekday) {
+    const en = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const es = <String>['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    final index = (weekday - 1).clamp(0, 6).toInt();
+    return (_es ? es : en)[index];
+  }
+
+  String get restDoneTitle => _es ? 'Descanso terminado' : 'Rest complete';
+  String get restDoneBody =>
+      _es ? 'Hora de la siguiente serie.' : 'Time for your next set.';
   String get settingsAbout => _es ? 'Acerca de' : 'About';
   String get settingsVersion => _es ? 'Versión' : 'Version';
   String get settingsDisclaimer => _es ? 'Aviso médico' : 'Medical disclaimer';

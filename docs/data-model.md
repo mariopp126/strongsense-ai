@@ -175,9 +175,21 @@ generated (so the Coach tab and Home teaser can show it before the workout start
   "theme": "system",
   "onboardingComplete": true,
   "userName": "Mario",
-  "bodyWeightKg": 82.5
+  "bodyWeightKg": 82.5,
+  "remindersEnabled": false,
+  "reminderHour": 18,
+  "reminderMinute": 0,
+  "reminderWeekdays": [1, 3, 5],
+  "restNotificationsEnabled": true,
+  "quietHoursEnabled": false,
+  "quietStartHour": 22,
+  "quietEndHour": 7
 }
 ```
+
+Reminders are local-only. `reminderWeekdays` uses `DateTime.monday`..`sunday` (1..7).
+If the reminder time falls inside the quiet window, no training reminder is scheduled;
+the rest-timer notification uses a separate channel and is unaffected by quiet hours.
 
 ## Sembast stores
 

@@ -50,6 +50,19 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
   void _startRest([int seconds = 90]) {
     _restTimer?.cancel();
     setState(() => _restRemaining = seconds);
+    final settings = ref.read(settingsControllerProvider);
+    if (settings.restNotificationsEnabled) {
+      final l10n = AppLocalizations.of(context);
+      unawaited(
+        ref
+            .read(notificationServiceProvider)
+            .scheduleRestDone(
+              rest: Duration(seconds: seconds),
+              title: l10n.restDoneTitle,
+              body: l10n.restDoneBody,
+            ),
+      );
+    }
     _restTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -67,6 +80,7 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
 
   void _skipRest() {
     _restTimer?.cancel();
+    unawaited(ref.read(notificationServiceProvider).cancelRestDone());
     setState(() => _restRemaining = 0);
   }
 
@@ -254,6 +268,7 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
           sessionRpe: sessionRpe,
           notes: notesController.text.trim(),
         );
+    unawaited(ref.read(notificationServiceProvider).cancelRestDone());
     final completedSession = ref.read(sessionControllerProvider);
     final currentProgram = ref.read(programControllerProvider);
     final settings = ref.read(settingsControllerProvider);
@@ -299,6 +314,7 @@ class _WorkoutScreenState extends ConsumerState<WorkoutScreen> {
       ),
     );
     if (confirmed == true) {
+      unawaited(ref.read(notificationServiceProvider).cancelRestDone());
       await ref.read(sessionControllerProvider.notifier).discard();
       ref.invalidate(historyProvider);
       if (mounted) {
