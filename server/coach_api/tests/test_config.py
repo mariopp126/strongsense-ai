@@ -56,6 +56,44 @@ def test_openai_compatible_without_key_is_configured(
     assert settings.providers() == [{"name": "openai_compatible", "model": "llama3.1:8b"}]
 
 
+def test_openai_compatible_remote_without_key_is_not_configured(
+    make_settings: Callable[..., Settings],
+) -> None:
+    # Remote OpenAI-compatible endpoints require an API key.
+    settings = make_settings(
+        llm_provider="openai_compatible",
+        llm_base_url="https://api.openai.com/v1",
+        llm_model="gpt-4.1-mini",
+        llm_api_key=None,
+    )
+    assert settings.llm_configured is False
+    assert settings.providers() == []
+
+    # Same for any non-localhost remote host.
+    settings = make_settings(
+        llm_provider="openai_compatible",
+        llm_base_url="https://openrouter.ai/api/v1",
+        llm_model="openai/gpt-4.1-mini",
+        llm_api_key=None,
+    )
+    assert settings.llm_configured is False
+
+
+def test_openai_compatible_remote_with_key_is_configured(
+    make_settings: Callable[..., Settings],
+) -> None:
+    settings = make_settings(
+        llm_provider="openai_compatible",
+        llm_base_url="https://api.openai.com/v1",
+        llm_model="gpt-4.1-mini",
+        llm_api_key="sk-test-key",
+    )
+    assert settings.llm_configured is True
+    assert settings.providers() == [
+        {"name": "openai_compatible", "model": "gpt-4.1-mini"}
+    ]
+
+
 def test_anthropic_requires_key(make_settings: Callable[..., Settings]) -> None:
     without_key = make_settings(
         llm_provider="anthropic",
@@ -99,6 +137,13 @@ def test_missing_base_url_or_model_is_not_configured(
 def test_unknown_provider_rejected() -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, llm_provider="not_a_provider")
+
+
+def test_default_max_tokens_fits_reasoning_models() -> None:
+    # Gemini 3 / o-series spend hidden thinking tokens from the same budget; the old
+    # 900-token default truncated the JSON plan (finish_reason=length).
+    settings = Settings(_env_file=None)
+    assert settings.llm_max_tokens == 4096
 
 
 def test_blank_secrets_become_none(make_settings: Callable[..., Settings]) -> None:

@@ -91,6 +91,21 @@ def test_health_openai_compatible_without_key_is_configured(
     assert body["providers"] == [{"name": "openai_compatible", "model": "llama3.1:8b"}]
 
 
+def test_health_openai_compatible_remote_without_key_is_not_configured(
+    make_client: Callable[..., TestClient],
+) -> None:
+    # Remote OpenAI-compatible endpoints require an API key.
+    with make_client(
+        llm_provider="openai_compatible",
+        llm_base_url="https://api.openai.com/v1",
+        llm_model="gpt-4.1-mini",
+        llm_api_key=None,
+    ) as client:
+        body = client.get("/health").json()
+    assert body["llmConfigured"] is False
+    assert body["providers"] == []
+
+
 def test_health_has_request_id_header(client: TestClient) -> None:
     response = client.get("/health")
     assert response.headers.get("X-Request-ID")

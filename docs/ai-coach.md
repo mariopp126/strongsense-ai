@@ -109,8 +109,15 @@ is loaded by **both** the Dart and Python test suites to prove the two clamps ag
 2. Optional fallback provider, same policy.
 3. One JSON repair retry if the model returned text that is not valid JSON.
 4. If a baseline plan was supplied, return it as `source: "rules_fallback"` with
-   `meta.clamped` / `droppedAdjustments`.
+   `meta.clamped` / `droppedAdjustments`. The provider failure reason is written to the
+   request log as `llmError` (never to the app), so quota/401/timeout problems are not
+   silent.
 5. Otherwise `503 llm_unavailable`.
+
+A 429 caused by an exhausted quota (or a `Retry-After` longer than the remaining
+budget) is not retried: the retry cannot succeed. Free-tier Gemini keys are limited to
+a small number of requests per day; when that limit is reached the service logs the
+provider message and uses the deterministic fallback until the quota resets.
 
 The client treats any non-200 response, timeout or invalid body as "AI unavailable"
 and keeps its local plan.
@@ -126,7 +133,14 @@ An optional fallback chain is configured with `LLM_FALLBACK_*`.
 |---|---|---|
 | `LLM_TIMEOUT_SECONDS` | 20 | Total budget per provider call |
 | `LLM_TEMPERATURE` | 0.4 | Enough variation for wording, not for numbers |
-| `LLM_MAX_TOKENS` | 900 | Keeps responses inside the contract |
+| `LLM_MAX_TOKENS` | 4096 | Output cap; reasoning models spend part of it on hidden thinking |
+
+Reasoning models (Gemini 3 "flash", OpenAI o-series, ...) count hidden thinking tokens
+against `LLM_MAX_TOKENS`. With the old 900-token default the JSON plan was truncated
+(`finish_reason: "length"`) and the service fell back to the offline plan. The adapter
+now reports that case explicitly instead of retrying an answer that cannot fit. For
+this JSON task the `*-flash-lite` variants are faster and cheaper; they are the
+recommended Gemini models.
 
 JSON schema mode is attempted first (`response_format: json_schema`); if the provider
 rejects it, the adapter falls back to `json_object` plus a strict instruction.

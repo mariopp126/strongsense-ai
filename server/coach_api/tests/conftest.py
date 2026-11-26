@@ -95,6 +95,7 @@ def openai_response(
     model: str = "test-model",
     prompt_tokens: int = 100,
     completion_tokens: int = 50,
+    finish_reason: str = "stop",
 ) -> httpx.Response:
     """Build a fake OpenAI-compatible chat completion response."""
     text = json.dumps(content) if isinstance(content, dict) else content
@@ -108,7 +109,7 @@ def openai_response(
                 {
                     "index": 0,
                     "message": {"role": "assistant", "content": text},
-                    "finish_reason": "stop",
+                    "finish_reason": finish_reason,
                 }
             ],
             "usage": {

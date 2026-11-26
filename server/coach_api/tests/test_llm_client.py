@@ -27,6 +27,7 @@ from app.schemas import CoachRequest
 from conftest import (
     FALLBACK_BASE_URL,
     PRIMARY_BASE_URL,
+    TEST_API_KEY,
     anthropic_response,
     error_response,
     model_plan_from_example,
@@ -273,6 +274,89 @@ async def test_openai_429_exhausted(
     assert openai_route.call_count == 2
 
 
+async def test_openai_429_daily_quota_is_not_retried(
+    configured: Settings,
+    request_obj: CoachRequest,
+    openai_route: Any,
+) -> None:
+    openai_route.mock(
+        return_value=httpx.Response(
+            429,
+            json=[
+                {
+                    "error": {
+                        "code": 429,
+                        "message": (
+                            "You exceeded your current quota, please check your plan. "
+                            "Quota exceeded for metric: per day limit exceeded."
+                        ),
+                    }
+                }
+            ],
+        )
+    )
+    with pytest.raises(LlmUnavailableError) as exc_info:
+        await LlmClient(configured, backoff_seconds=0.0).generate(request_obj)
+    assert openai_route.call_count == 1
+    reason = exc_info.value.errors[0].reason
+    assert "HTTP 429" in reason
+    assert "quota" in reason.lower()
+
+
+async def test_openai_429_retry_after_beyond_budget_is_not_retried(
+    configured: Settings,
+    request_obj: CoachRequest,
+    openai_route: Any,
+) -> None:
+    openai_route.mock(
+        return_value=httpx.Response(
+            429,
+            headers={"Retry-After": "3600"},
+            json={"error": {"message": "slow down"}},
+        )
+    )
+    with pytest.raises(LlmUnavailableError) as exc_info:
+        await LlmClient(configured, backoff_seconds=0.0).generate(request_obj)
+    assert openai_route.call_count == 1
+    assert "retry after 3600s" in exc_info.value.errors[0].reason
+
+
+async def test_openai_truncated_output_is_actionable(
+    configured: Settings,
+    request_obj: CoachRequest,
+    openai_route: Any,
+) -> None:
+    # A reasoning model can spend the whole max_tokens budget on hidden thinking,
+    # leaving a cut-off JSON answer. Retrying cannot help: raise a clear reason.
+    openai_route.mock(
+        return_value=openai_response('{"summary": "cut off', finish_reason="length")
+    )
+    with pytest.raises(LlmUnavailableError) as exc_info:
+        await LlmClient(configured, backoff_seconds=0.0).generate(request_obj)
+    assert openai_route.call_count == 1
+    reason = exc_info.value.errors[0].reason
+    assert "truncated" in reason
+    assert "LLM_MAX_TOKENS" in reason
+
+
+async def test_openai_error_detail_is_reported(
+    configured: Settings,
+    request_obj: CoachRequest,
+    openai_route: Any,
+) -> None:
+    openai_route.mock(
+        return_value=httpx.Response(
+            401, json={"error": {"message": "Incorrect API key provided"}}
+        )
+    )
+    with pytest.raises(LlmUnavailableError) as exc_info:
+        await LlmClient(configured, backoff_seconds=0.0).generate(request_obj)
+    reason = exc_info.value.errors[0].reason
+    assert "HTTP 401" in reason
+    assert "Incorrect API key provided" in reason
+    assert TEST_API_KEY not in reason
+
+
 async def test_openai_timeout(
     configured: Settings,
     request_obj: CoachRequest,
@@ -389,6 +473,27 @@ async def test_anthropic_success(
     assert "expert strength coach" in body["system"]
     assert body["messages"][0]["role"] == "user"
     assert "response_format" not in body
+
+
+async def test_anthropic_truncated_output_is_actionable(
+    anthropic_settings: Settings,
+    request_obj: CoachRequest,
+    respx_router: Any,
+) -> None:
+    respx_router.post("https://anthro.test/v1/messages").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "content": [{"type": "text", "text": '{"summary": "cut off'}],
+                "stop_reason": "max_tokens",
+            },
+        )
+    )
+    with pytest.raises(LlmUnavailableError) as exc_info:
+        await LlmClient(anthropic_settings, backoff_seconds=0.0).generate(request_obj)
+    reason = exc_info.value.errors[0].reason
+    assert "truncated" in reason
+    assert "LLM_MAX_TOKENS" in reason
 
 
 async def test_anthropic_fence_stripping(

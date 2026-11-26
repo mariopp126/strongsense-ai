@@ -101,6 +101,7 @@ async def generate_plan(
             provider=provider,
             model=model,
             source=PlanSource.RULES_FALLBACK,
+            llmError=_error_reason(exc),
         )
         if baseline is None:
             raise CoachError(
@@ -164,6 +165,18 @@ def _with_source(plan: CoachPlan, source: PlanSource) -> CoachPlan:
 def _set_diagnostics(diagnostics: dict[str, Any] | None, **values: Any) -> None:
     if diagnostics is not None:
         diagnostics.update({key: value for key, value in values.items() if value is not None})
+
+
+def _error_reason(error: LlmUnavailableError) -> str:
+    """Return a short, single-line provider reason for the request log.
+
+    The reason never contains request data or API keys: it is either a server-owned
+    message or the provider's own error message, truncated by ``llm``.
+    """
+    if not error.errors:
+        return "no provider attempt succeeded"
+    reason = " ".join(str(error.errors[-1].reason).split())
+    return reason[:240]
 
 
 __all__ = ["CoachError", "LLM_NOT_CONFIGURED_MESSAGE", "LLM_UNAVAILABLE_MESSAGE", "generate_plan"]
