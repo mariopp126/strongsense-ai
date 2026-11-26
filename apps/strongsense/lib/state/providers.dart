@@ -11,6 +11,7 @@ import '../data/services/backup_file_service.dart';
 import '../data/services/backup_service.dart';
 import '../data/services/coach_context_service.dart';
 import '../data/services/coach_service.dart';
+import '../data/services/program_template_service.dart';
 import 'program_controller.dart';
 import 'session_controller.dart';
 import 'settings_controller.dart';
@@ -88,6 +89,10 @@ final backupServiceProvider = Provider<BackupService>(
 
 final backupFileServiceProvider = Provider<BackupFileService>(
   (ref) => const BackupFileService(),
+);
+
+final programTemplateServiceProvider = Provider<ProgramTemplateService>(
+  (ref) => const ProgramTemplateService(),
 );
 
 // ---------------------------------------------------------------------------

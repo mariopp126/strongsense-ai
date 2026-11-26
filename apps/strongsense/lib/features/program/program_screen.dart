@@ -486,7 +486,12 @@ class _ProgramScreenState extends ConsumerState<ProgramScreen> {
       return;
     }
     try {
-      await ref.read(programControllerProvider.notifier).save(draft);
+      // Manual edits detach the program from its template so the next
+      // progression step cannot silently overwrite them. Reselect the template
+      // in Settings to reattach.
+      await ref
+          .read(programControllerProvider.notifier)
+          .save(draft.copyWith(clearTemplate: true));
     } catch (_) {
       if (!mounted) {
         return;

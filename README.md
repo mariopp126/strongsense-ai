@@ -50,6 +50,21 @@ Most trackers record what you did. StrongSense decides **what you should do toda
 Work sets, reps and starting loads are seeded exactly as in the reference design.
 Progress is carried forward automatically from what you actually lifted.
 
+## Program templates
+
+**Settings → Training program → Program template** switches between:
+
+| Template | Structure | Progression |
+|---|---|---|
+| 5/3/1 | 4 days, weekly 5/3/1 waves | Training maxes increase after the 4-week cycle |
+| GZCLP | 4 days, T1 5x3 / T2 3x10 / T3 3x15 | The trained lift's training max increases after a clean session |
+| Block periodization | 4 days, volume → intensity → deload | Training maxes increase after the block |
+
+Switching templates keeps every completed session. The program is rebuilt for the
+next wave after a session, and the autoregulation/safety clamps still apply on top.
+Editing the program in the editor detaches it from its template (so progression cannot
+overwrite your changes); reselect the template to reattach.
+
 ## Features
 
 - **Readiness check-in** with weighted scoring, pain caps and explainable components.
@@ -59,6 +74,7 @@ Progress is carried forward automatically from what you actually lifted.
 - **AI coach (optional)**: OpenAI-compatible or native Anthropic, with a server-side proxy, structured output validation and hard safety clamps.
 - **Live workout**: set-by-set logging, weight/reps/RPE editing, rest timer, resumable sessions.
 - **Session summary**: volume, e1RM, missed sets, duration, PR detection, next-session targets.
+- **Program templates**: 5/3/1, GZCLP and block periodization with template-aware progression.
 - **History & progress**: session log plus e1RM line chart and volume bar chart.
 - **Local-first**: sembast on device/IndexedDB in the browser; no account required.
 - **Mobile + web**: Flutter for Android, iOS and an installable PWA.

@@ -345,6 +345,36 @@ class AppLocalizations {
   String get settingsDisclaimer => _es ? 'Aviso médico' : 'Medical disclaimer';
   String get settingsProgram =>
       _es ? 'Programa de entrenamiento' : 'Training program';
+  String get settingsProgramTemplate =>
+      _es ? 'Plantilla de programa' : 'Program template';
+  String settingsProgramWeek(int week) => _es ? 'Semana $week' : 'Week $week';
+  String get settingsProgramTemplateConfirmTitle =>
+      _es ? '¿Cambiar plantilla de programa?' : 'Switch program template?';
+  String get settingsProgramTemplateConfirmBody => _es
+      ? 'Esto reemplaza el programa actual con la plantilla seleccionada. Tu historial de sesiones se conserva.'
+      : 'This replaces the current program with the selected template. Your session history is kept.';
+  String get settingsProgramTemplateConfirmAction => _es ? 'Cambiar' : 'Switch';
+  String settingsProgramTemplateApplied(String name) =>
+      _es ? 'Ahora usas $name.' : 'Now using $name.';
+  String programTemplateDescription(String id) {
+    switch (id) {
+      case '5_3_1':
+        return _es
+            ? 'Ondas 5/3/1 semanales con descarga cada cuatro semanas.'
+            : 'Weekly 5/3/1 waves with a deload every fourth week.';
+      case 'gzclp':
+        return _es
+            ? 'Progresión lineal T1/T2/T3 para los cuatro levantamientos principales.'
+            : 'Linear T1/T2/T3 progression for the four main lifts.';
+      case 'block_periodization':
+        return _es
+            ? 'Bloques de volumen, intensidad y descarga.'
+            : 'Volume, intensity and deload blocks.';
+      default:
+        return _es ? 'Plantilla de cuatro días.' : 'A four-day template.';
+    }
+  }
+
   String get settingsAppearance => _es ? 'Apariencia' : 'Appearance';
   String get settingsDarkMode => _es ? 'Modo oscuro' : 'Dark mode';
   String get settingsSystemTheme => _es ? 'Sistema' : 'System';

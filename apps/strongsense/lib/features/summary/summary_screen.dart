@@ -83,7 +83,7 @@ class _SummaryBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final day = program.dayById(session.dayId) ?? program.days.first;
+    final day = _dayForSession(session, program);
     final summary = SessionSummaryCalculator.summarize(
       session: session,
       day: day,
@@ -419,4 +419,35 @@ class _LiftRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Builds a display day for a session whose program day no longer exists
+/// (for example after switching templates). The set data stays accurate even
+/// when the original exercise names are gone.
+ProgramDay _dayForSession(Session session, TrainingProgram program) {
+  final day = program.dayById(session.dayId);
+  if (day != null) {
+    return day;
+  }
+  final byExercise = <String, List<SetLog>>{};
+  for (final log in session.setLogs) {
+    byExercise.putIfAbsent(log.exerciseId, () => <SetLog>[]).add(log);
+  }
+  return ProgramDay(
+    id: session.dayId,
+    title: session.dayId,
+    focus: '',
+    exercises: <ProgramExercise>[
+      for (final entry in byExercise.entries)
+        ProgramExercise(
+          id: entry.key,
+          name: entry.key,
+          role: ExerciseRole.accessory,
+          setTargets: <SetTarget>[
+            for (final log in entry.value)
+              SetTarget(reps: log.targetReps, loadKg: log.targetLoadKg),
+          ],
+        ),
+    ],
+  );
 }
