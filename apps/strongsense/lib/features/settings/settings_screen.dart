@@ -256,13 +256,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(l10n.settingsCoachEnabled),
-                  subtitle: Text(l10n.coachOfflineHint),
-                  value: settings.coachEnabled,
-                  onChanged: (value) =>
-                      _update(settings.copyWith(coachEnabled: value)),
+                Material(
+                  type: MaterialType.transparency,
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.settingsCoachEnabled),
+                    subtitle: Text(l10n.coachOfflineHint),
+                    value: settings.coachEnabled,
+                    onChanged: (value) =>
+                        _update(settings.copyWith(coachEnabled: value)),
+                  ),
                 ),
                 const SizedBox(height: SsSpacing.sm),
                 TextField(
@@ -405,15 +408,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           SsCard(
             padding: EdgeInsets.zero,
-            child: ListTile(
-              leading: const Icon(
-                Icons.fitness_center_rounded,
-                color: SsColors.emerald600,
+            child: Material(
+              type: MaterialType.transparency,
+              child: ListTile(
+                leading: const Icon(
+                  Icons.fitness_center_rounded,
+                  color: SsColors.emerald600,
+                ),
+                title: Text(l10n.programTitle),
+                subtitle: Text(l10n.onboardingProgramBody),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.go('/program'),
               ),
-              title: Text(l10n.programTitle),
-              subtitle: Text(l10n.onboardingProgramBody),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => context.go('/program'),
             ),
           ),
           const SizedBox(height: SsSpacing.xl),
@@ -423,16 +429,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           SsCard(
             padding: EdgeInsets.zero,
-            child: ListTile(
-              leading: const Icon(
-                Icons.delete_forever_rounded,
-                color: SsColors.red500,
+            child: Material(
+              type: MaterialType.transparency,
+              child: ListTile(
+                leading: const Icon(
+                  Icons.delete_forever_rounded,
+                  color: SsColors.red500,
+                ),
+                title: Text(
+                  l10n.settingsReset,
+                  style: const TextStyle(color: SsColors.red500),
+                ),
+                onTap: _resetData,
               ),
-              title: Text(
-                l10n.settingsReset,
-                style: const TextStyle(color: SsColors.red500),
-              ),
-              onTap: _resetData,
             ),
           ),
           const SizedBox(height: SsSpacing.xl),

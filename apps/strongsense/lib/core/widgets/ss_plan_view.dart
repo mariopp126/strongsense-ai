@@ -209,27 +209,30 @@ class CoachPlanView extends StatelessWidget {
         const SizedBox(height: SsSpacing.sm),
         Theme(
           data: theme.copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: EdgeInsets.zero,
-            title: Text(l10n.readinessWhy, style: theme.textTheme.titleSmall),
-            leading: const Icon(
-              Icons.psychology_alt_outlined,
-              color: SsColors.emerald600,
-              size: 20,
-            ),
-            children: <Widget>[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  plan.readinessExplanation,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+          child: Material(
+            type: MaterialType.transparency,
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              title: Text(l10n.readinessWhy, style: theme.textTheme.titleSmall),
+              leading: const Icon(
+                Icons.psychology_alt_outlined,
+                color: SsColors.emerald600,
+                size: 20,
+              ),
+              children: <Widget>[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    plan.readinessExplanation,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: SsSpacing.md),
-            ],
+                const SizedBox(height: SsSpacing.md),
+              ],
+            ),
           ),
         ),
         if (plan.adjustments.isNotEmpty) ...<Widget>[
